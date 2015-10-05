@@ -12,11 +12,19 @@ public class Z80Executor {
 	private Z80Clock clock;
 	private Z80ALU alu;
 
+	public Z80Executor(Z80Cpu cpu, IMemory memory, Z80Registers reg, Z80Clock clock, Z80ALU alu) {
+		this.cpu = cpu;
+		this.memory = memory;
+		this.reg = reg;
+		this.clock = clock;
+		this.alu = alu;
+	}
+
 	/**
 	 * I'm not sure what this constant really means to the Z80 CPU,
 	 * but I do know that is is the GameBoy's IO ports.
 	 */
-	private int IO_LOC = 0xFF00;
+	private final static int IO_LOC = 0xFF00;
 
 	/**
 	 * This is the next offset that will be read in a next8() pr next16() call.
@@ -28,7 +36,7 @@ public class Z80Executor {
 
 	public void execute(int instr) {
 		// work integers 1 & 2
-		int w0 = 0, w1 = 0; // Have to define this outside (switch is one big scope)
+		int w0; // Have to define this outside (switch is one big scope)
 
 		switch (instr & 0xff) {
 			case 0x00: // opcode:NOP | flags:- - - - | length: 1
@@ -127,7 +135,8 @@ public class Z80Executor {
 				clock.inc(4);
 				break;
 			case 0x18: // opcode:JR r8 | flags:- - - - | length: 2
-				reg.setPC(reg.getPC() + ext8(next8()));
+				w0 = ext8(next8());
+				reg.setPC(reg.getPC() + w0);
 				clock.inc(12);
 				break;
 			case 0x19: // opcode:ADD HL,DE | flags:- 0 H C | length: 1
@@ -160,7 +169,8 @@ public class Z80Executor {
 				break;
 			case 0x20: // opcode:JR NZ,r8 | flags:- - - - | length: 2
 				if (!reg.getZFlag()) {
-					reg.setPC(reg.getPC() + ext8(next8()));
+					w0 = ext8(next8());
+					reg.setPC(reg.getPC() + w0);
 					clock.inc(12);
 				} else {
 					next8();
@@ -198,7 +208,8 @@ public class Z80Executor {
 				break;
 			case 0x28: // opcode:JR Z,r8 | flags:- - - - | length: 2
 				if (reg.getZFlag()) {
-					reg.setPC(reg.getPC() + ext8(next8()));
+					w0 = ext8(next8());
+					reg.setPC(reg.getPC() + w0);
 					clock.inc(12);
 				} else {
 					next8();
@@ -236,7 +247,8 @@ public class Z80Executor {
 				break;
 			case 0x30: // opcode:JR NC,r8 | flags:- - - - | length: 2
 				if (!reg.getCFlag()) {
-					reg.setPC(reg.getPC() + ext8(next8()));
+					w0 = ext8(next8());
+					reg.setPC(reg.getPC() + w0);
 					clock.inc(12);
 				} else {
 					next8();
@@ -249,7 +261,7 @@ public class Z80Executor {
 				break;
 			case 0x32: // opcode:LD (HL-),A | flags:- - - - | length: 1
 				write8(reg.getHL(), reg.getA());
-				reg.setHL(alu.sub16(reg.getHL(), 1));
+				reg.setHL(alu.dec16(reg.getHL()));
 				clock.inc(8);
 				break;
 			case 0x33: // opcode:INC SP | flags:- - - - | length: 1
@@ -280,7 +292,8 @@ public class Z80Executor {
 				break;
 			case 0x38: // opcode:JR C,r8 | flags:- - - - | length: 2
 				if (reg.getCFlag()) {
-					reg.setPC(reg.getPC() + ext8(next8()));
+					w0 = ext8(next8());
+					reg.setPC(reg.getPC() + w0);
 					clock.inc(12);
 				} else {
 					next8();
@@ -1027,7 +1040,7 @@ public class Z80Executor {
 				clock.inc(16);
 				break;
 			case 0xE8: // opcode:ADD SP,r8 | flags:0 0 H C | length: 2
-				// todo make sure the following code is correct.
+				// fixme make sure the following code is correct.
 				w0 = reg.getSP() + next8();
 				reg.clearZFlag();
 				reg.clearNFlag();
@@ -1037,832 +1050,185 @@ public class Z80Executor {
 				clock.inc(16);
 				break;
 			case 0xE9: // opcode:JP (HL) | flags:- - - - | length: 1
-				reg.setPC(read16(reg.getHL()));
+				// fixme confusing parenthesis, is (HL) an address or just the register?
+				reg.setPC(reg.getHL());
 				clock.inc(4);
 				break;
 			case 0xEA: // opcode:LD (a16),A | flags:- - - - | length: 3
+				write8(next16(), reg.getA());
 				clock.inc(16);
 				break;
 			case 0xEE: // opcode:XOR d8 | flags:Z 0 0 0 | length: 2
+				reg.setA(alu.xor(reg.getA(), next8()));
 				clock.inc(8);
 				break;
 			case 0xEF: // opcode:RST 28H | flags:- - - - | length: 1
+				call(0x28);
 				clock.inc(16);
 				break;
 			case 0xF0: // opcode:LDH A,(a8) | flags:- - - - | length: 2
+				reg.setA(read8(IO_LOC + next8()));
 				clock.inc(12);
 				break;
 			case 0xF1: // opcode:POP AF | flags:Z N H C | length: 1
+				reg.setAF(pop16());
 				clock.inc(12);
 				break;
 			case 0xF2: // opcode:LD A,(C) | flags:- - - - | length: 2
-				clock.inc(8);
+				// clock.inc(8);
+				cpu.removedInstr();
 				break;
 			case 0xF3: // opcode:DI | flags:- - - - | length: 1
+				// todo Should I set (0xffffh) to 1, 0, 0xff????
 				clock.inc(4);
 				break;
 			case 0xF5: // opcode:PUSH AF | flags:- - - - | length: 1
+				push16(reg.getAF());
 				clock.inc(16);
 				break;
 			case 0xF6: // opcode:OR d8 | flags:Z 0 0 0 | length: 2
+				reg.setA(alu.or(reg.getA(), next8()));
 				clock.inc(8);
 				break;
 			case 0xF7: // opcode:RST 30H | flags:- - - - | length: 1
+				call(0x30);
 				clock.inc(16);
 				break;
 			case 0xF8: // opcode:LD HL,SP+r8 | flags:0 0 H C | length: 2
+				// fixme make sure the following code is correct.
+				w0 = reg.getSP() + next8();
+				reg.clearZFlag();
+				reg.clearNFlag();
+				reg.putCFlag( (w0 & 0xFF) < (reg.getSP() & 0xFF) );
+				reg.putHFlag( (w0 & 0xF) < (reg.getSP() & 0xF) );
+				reg.setHL(w0);
 				clock.inc(12);
 				break;
 			case 0xF9: // opcode:LD SP,HL | flags:- - - - | length: 1
+				reg.setSP(reg.getHL());
 				clock.inc(8);
 				break;
 			case 0xFA: // opcode:LD A,(a16) | flags:- - - - | length: 3
+				reg.setA(read16(next16()));
 				clock.inc(16);
 				break;
 			case 0xFB: // opcode:EI | flags:- - - - | length: 1
+				// todo enable interrupts, see 0xF3
 				clock.inc(4);
 				break;
 			case 0xFE: // opcode:CP d8 | flags:Z 1 H C | length: 2
+				alu.cmp(reg.getA(), next8());
 				clock.inc(8);
 				break;
 			case 0xFF: // opcode:RST 38H | flags:- - - - | length: 1
+				call(0x38);
 				clock.inc(16);
 			default:
+				// This should probably be done differently in order to mix well with
+				// removed instructions. Maybe those should be causing errors though :\
 				System.err.printf("Undefined instruction %02x\n", instr);
 				break;
 		}
 	}
 
 	private void executeCB(int instr) {
-//		this.address = this.reg.getPC();
-		switch (instr & 0xff) {
-			case 0x0: // opcode:RLC B | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x1: // opcode:RLC C | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x2: // opcode:RLC D | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x3: // opcode:RLC E | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x4: // opcode:RLC H | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x5: // opcode:RLC L | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x6: // opcode:RLC (HL) | flags:Z 0 0 C | length: 2
-				clock.inc(16);
-				break;
-			case 0x7: // opcode:RLC A | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x8: // opcode:RRC B | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x9: // opcode:RRC C | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0xA: // opcode:RRC D | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0xB: // opcode:RRC E | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0xC: // opcode:RRC H | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0xD: // opcode:RRC L | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0xE: // opcode:RRC (HL) | flags:Z 0 0 C | length: 2
-				clock.inc(16);
-				break;
-			case 0xF: // opcode:RRC A | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x10: // opcode:RL B | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x11: // opcode:RL C | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x12: // opcode:RL D | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x13: // opcode:RL E | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x14: // opcode:RL H | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x15: // opcode:RL L | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x16: // opcode:RL (HL) | flags:Z 0 0 C | length: 2
-				clock.inc(16);
-				break;
-			case 0x17: // opcode:RL A | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x18: // opcode:RR B | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x19: // opcode:RR C | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x1A: // opcode:RR D | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x1B: // opcode:RR E | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x1C: // opcode:RR H | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x1D: // opcode:RR L | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x1E: // opcode:RR (HL) | flags:Z 0 0 C | length: 2
-				clock.inc(16);
-				break;
-			case 0x1F: // opcode:RR A | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x20: // opcode:SLA B | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x21: // opcode:SLA C | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x22: // opcode:SLA D | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x23: // opcode:SLA E | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x24: // opcode:SLA H | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x25: // opcode:SLA L | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x26: // opcode:SLA (HL) | flags:Z 0 0 C | length: 2
-				clock.inc(16);
-				break;
-			case 0x27: // opcode:SLA A | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x28: // opcode:SRA B | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x29: // opcode:SRA C | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x2A: // opcode:SRA D | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x2B: // opcode:SRA E | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x2C: // opcode:SRA H | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x2D: // opcode:SRA L | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x2E: // opcode:SRA (HL) | flags:Z 0 0 0 | length: 2
-				clock.inc(16);
-				break;
-			case 0x2F: // opcode:SRA A | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x30: // opcode:SWAP B | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x31: // opcode:SWAP C | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x32: // opcode:SWAP D | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x33: // opcode:SWAP E | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x34: // opcode:SWAP H | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x35: // opcode:SWAP L | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x36: // opcode:SWAP (HL) | flags:Z 0 0 0 | length: 2
-				clock.inc(16);
-				break;
-			case 0x37: // opcode:SWAP A | flags:Z 0 0 0 | length: 2
-				clock.inc(8);
-				break;
-			case 0x38: // opcode:SRL B | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x39: // opcode:SRL C | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x3A: // opcode:SRL D | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x3B: // opcode:SRL E | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x3C: // opcode:SRL H | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x3D: // opcode:SRL L | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x3E: // opcode:SRL (HL) | flags:Z 0 0 C | length: 2
-				clock.inc(16);
-				break;
-			case 0x3F: // opcode:SRL A | flags:Z 0 0 C | length: 2
-				clock.inc(8);
-				break;
-			case 0x40: // opcode:BIT 0,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x41: // opcode:BIT 0,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x42: // opcode:BIT 0,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x43: // opcode:BIT 0,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x44: // opcode:BIT 0,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x45: // opcode:BIT 0,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x46: // opcode:BIT 0,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x47: // opcode:BIT 0,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x48: // opcode:BIT 1,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x49: // opcode:BIT 1,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x4A: // opcode:BIT 1,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x4B: // opcode:BIT 1,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x4C: // opcode:BIT 1,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x4D: // opcode:BIT 1,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x4E: // opcode:BIT 1,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x4F: // opcode:BIT 1,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x50: // opcode:BIT 2,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x51: // opcode:BIT 2,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x52: // opcode:BIT 2,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x53: // opcode:BIT 2,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x54: // opcode:BIT 2,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x55: // opcode:BIT 2,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x56: // opcode:BIT 2,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x57: // opcode:BIT 2,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x58: // opcode:BIT 3,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x59: // opcode:BIT 3,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x5A: // opcode:BIT 3,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x5B: // opcode:BIT 3,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x5C: // opcode:BIT 3,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x5D: // opcode:BIT 3,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x5E: // opcode:BIT 3,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x5F: // opcode:BIT 3,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x60: // opcode:BIT 4,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x61: // opcode:BIT 4,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x62: // opcode:BIT 4,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x63: // opcode:BIT 4,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x64: // opcode:BIT 4,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x65: // opcode:BIT 4,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x66: // opcode:BIT 4,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x67: // opcode:BIT 4,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x68: // opcode:BIT 5,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x69: // opcode:BIT 5,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x6A: // opcode:BIT 5,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x6B: // opcode:BIT 5,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x6C: // opcode:BIT 5,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x6D: // opcode:BIT 5,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x6E: // opcode:BIT 5,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x6F: // opcode:BIT 5,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x70: // opcode:BIT 6,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x71: // opcode:BIT 6,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x72: // opcode:BIT 6,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x73: // opcode:BIT 6,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x74: // opcode:BIT 6,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x75: // opcode:BIT 6,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x76: // opcode:BIT 6,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x77: // opcode:BIT 6,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x78: // opcode:BIT 7,B | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x79: // opcode:BIT 7,C | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x7A: // opcode:BIT 7,D | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x7B: // opcode:BIT 7,E | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x7C: // opcode:BIT 7,H | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x7D: // opcode:BIT 7,L | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x7E: // opcode:BIT 7,(HL) | flags:Z 0 1 - | length: 2
-				clock.inc(16);
-				break;
-			case 0x7F: // opcode:BIT 7,A | flags:Z 0 1 - | length: 2
-				clock.inc(8);
-				break;
-			case 0x80: // opcode:RES 0,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x81: // opcode:RES 0,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x82: // opcode:RES 0,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x83: // opcode:RES 0,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x84: // opcode:RES 0,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x85: // opcode:RES 0,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x86: // opcode:RES 0,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0x87: // opcode:RES 0,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x88: // opcode:RES 1,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x89: // opcode:RES 1,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x8A: // opcode:RES 1,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x8B: // opcode:RES 1,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x8C: // opcode:RES 1,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x8D: // opcode:RES 1,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x8E: // opcode:RES 1,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0x8F: // opcode:RES 1,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x90: // opcode:RES 2,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x91: // opcode:RES 2,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x92: // opcode:RES 2,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x93: // opcode:RES 2,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x94: // opcode:RES 2,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x95: // opcode:RES 2,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x96: // opcode:RES 2,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0x97: // opcode:RES 2,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x98: // opcode:RES 3,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x99: // opcode:RES 3,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x9A: // opcode:RES 3,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x9B: // opcode:RES 3,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x9C: // opcode:RES 3,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x9D: // opcode:RES 3,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0x9E: // opcode:RES 3,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0x9F: // opcode:RES 3,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA0: // opcode:RES 4,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA1: // opcode:RES 4,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA2: // opcode:RES 4,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA3: // opcode:RES 4,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA4: // opcode:RES 4,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA5: // opcode:RES 4,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA6: // opcode:RES 4,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xA7: // opcode:RES 4,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA8: // opcode:RES 5,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xA9: // opcode:RES 5,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xAA: // opcode:RES 5,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xAB: // opcode:RES 5,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xAC: // opcode:RES 5,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xAD: // opcode:RES 5,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xAE: // opcode:RES 5,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xAF: // opcode:RES 5,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB0: // opcode:RES 6,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB1: // opcode:RES 6,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB2: // opcode:RES 6,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB3: // opcode:RES 6,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB4: // opcode:RES 6,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB5: // opcode:RES 6,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB6: // opcode:RES 6,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xB7: // opcode:RES 6,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB8: // opcode:RES 7,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xB9: // opcode:RES 7,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xBA: // opcode:RES 7,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xBB: // opcode:RES 7,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xBC: // opcode:RES 7,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xBD: // opcode:RES 7,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xBE: // opcode:RES 7,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xBF: // opcode:RES 7,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC0: // opcode:SET 0,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC1: // opcode:SET 0,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC2: // opcode:SET 0,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC3: // opcode:SET 0,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC4: // opcode:SET 0,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC5: // opcode:SET 0,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC6: // opcode:SET 0,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xC7: // opcode:SET 0,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC8: // opcode:SET 1,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xC9: // opcode:SET 1,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xCA: // opcode:SET 1,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xCB: // opcode:SET 1,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xCC: // opcode:SET 1,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xCD: // opcode:SET 1,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xCE: // opcode:SET 1,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xCF: // opcode:SET 1,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD0: // opcode:SET 2,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD1: // opcode:SET 2,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD2: // opcode:SET 2,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD3: // opcode:SET 2,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD4: // opcode:SET 2,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD5: // opcode:SET 2,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD6: // opcode:SET 2,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xD7: // opcode:SET 2,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD8: // opcode:SET 3,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xD9: // opcode:SET 3,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xDA: // opcode:SET 3,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xDB: // opcode:SET 3,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xDC: // opcode:SET 3,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xDD: // opcode:SET 3,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xDE: // opcode:SET 3,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xDF: // opcode:SET 3,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE0: // opcode:SET 4,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE1: // opcode:SET 4,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE2: // opcode:SET 4,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE3: // opcode:SET 4,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE4: // opcode:SET 4,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE5: // opcode:SET 4,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE6: // opcode:SET 4,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xE7: // opcode:SET 4,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE8: // opcode:SET 5,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xE9: // opcode:SET 5,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xEA: // opcode:SET 5,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xEB: // opcode:SET 5,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xEC: // opcode:SET 5,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xED: // opcode:SET 5,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xEE: // opcode:SET 5,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xEF: // opcode:SET 5,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF0: // opcode:SET 6,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF1: // opcode:SET 6,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF2: // opcode:SET 6,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF3: // opcode:SET 6,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF4: // opcode:SET 6,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF5: // opcode:SET 6,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF6: // opcode:SET 6,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xF7: // opcode:SET 6,A | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF8: // opcode:SET 7,B | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xF9: // opcode:SET 7,C | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xFA: // opcode:SET 7,D | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xFB: // opcode:SET 7,E | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xFC: // opcode:SET 7,H | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xFD: // opcode:SET 7,L | flags:- - - - | length: 2
-				clock.inc(8);
-				break;
-			case 0xFE: // opcode:SET 7,(HL) | flags:- - - - | length: 2
-				clock.inc(16);
-				break;
-			case 0xFF: // opcode:SET 7,A | flags:- - - - | length: 2
-				clock.inc(8);
+		// this.address = this.reg.getPC();
+		int register = instr & 0xF;
+		int cbinstr = (instr >> 4) & 0xF;
+		if((instr & 0xF) > 7) {
+			switch(cbinstr) {
+				case 0x0: cbRegSet(register, alu.rrc(cbRegGet(register))); break;
+				case 0x1: cbRegSet(register, alu.rr(cbRegGet(register))); break;
+				case 0x2: cbRegSet(register, alu.sra(cbRegGet(register))); break;
+				case 0x3: cbRegSet(register, alu.srl(cbRegGet(register))); break;
+				case 0x4: alu.bit(cbRegGet(register), 1); break;
+				case 0x5: alu.bit(cbRegGet(register), 3); break;
+				case 0x6: alu.bit(cbRegGet(register), 5); break;
+				case 0x7: alu.bit(cbRegGet(register), 7); break;
+				case 0x8: cbRegSet(register, alu.res(cbRegGet(register), 1)); break;
+				case 0x9: cbRegSet(register, alu.res(cbRegGet(register), 3)); break;
+				case 0xA: cbRegSet(register, alu.res(cbRegGet(register), 5)); break;
+				case 0xB: cbRegSet(register, alu.res(cbRegGet(register), 7)); break;
+				case 0xC: cbRegSet(register, alu.set(cbRegGet(register), 1)); break;
+				case 0xD: cbRegSet(register, alu.set(cbRegGet(register), 3)); break;
+				case 0xE: cbRegSet(register, alu.set(cbRegGet(register), 5)); break;
+				case 0xF: cbRegSet(register, alu.set(cbRegGet(register), 7)); break;
+			}
+		} else {
+			switch(cbinstr) {
+				case 0x0: cbRegSet(register, alu.rlc(cbRegGet(register))); break;
+				case 0x1: cbRegSet(register, alu.rl(cbRegGet(register))); break;
+				case 0x2: cbRegSet(register, alu.sla(cbRegGet(register))); break;
+				case 0x3: cbRegSet(register, alu.swap(cbRegGet(register))); break;
+				case 0x4: alu.bit(cbRegGet(register), 0); break;
+				case 0x5: alu.bit(cbRegGet(register), 2); break;
+				case 0x6: alu.bit(cbRegGet(register), 4); break;
+				case 0x7: alu.bit(cbRegGet(register), 5); break;
+				case 0x8: cbRegSet(register, alu.res(cbRegGet(register), 0)); break;
+				case 0x9: cbRegSet(register, alu.res(cbRegGet(register), 2)); break;
+				case 0xA: cbRegSet(register, alu.res(cbRegGet(register), 4)); break;
+				case 0xB: cbRegSet(register, alu.res(cbRegGet(register), 6)); break;
+				case 0xC: cbRegSet(register, alu.set(cbRegGet(register), 0)); break;
+				case 0xD: cbRegSet(register, alu.set(cbRegGet(register), 2)); break;
+				case 0xE: cbRegSet(register, alu.set(cbRegGet(register), 4)); break;
+				case 0xF: cbRegSet(register, alu.set(cbRegGet(register), 6)); break;
+			}
+		}
+		clock.inc(4);
+	}
+
+	private int cbRegGet(int r) {
+		switch(r) {
+			case 0x0: return reg.getB();
+			case 0x1: return reg.getC();
+			case 0x2: return reg.getD();
+			case 0x3: return reg.getE();
+			case 0x4: return reg.getH();
+			case 0x5: return reg.getL();
+			case 0x6: return read8(reg.getHL());
+			case 0x7: return reg.getA();
+
+			case 0x8: return reg.getB();
+			case 0x9: return reg.getC();
+			case 0xA: return reg.getD();
+			case 0xB: return reg.getE();
+			case 0xC: return reg.getH();
+			case 0xD: return reg.getL();
+			case 0xE: return reg.getHL();
+			case 0xF: return reg.getA();
+
+			default:
+				System.err.println("Bad CB Register Get!");
+				return 0;
+		}
+	}
+
+	private void cbRegSet(int r, int v) {
+		switch(r) {
+			case 0x0: reg.setB(v); break;
+			case 0x1: reg.setC(v); break;
+			case 0x2: reg.setD(v); break;
+			case 0x3: reg.setE(v); break;
+			case 0x4: reg.setH(v); break;
+			case 0x5: reg.setL(v); break;
+			case 0x6:
+				write8(reg.getHL(), v);
+				break;
+			case 0x7: reg.setA(v); break;
+
+			case 0x8: reg.setB(v); break;
+			case 0x9: reg.setC(v); break;
+			case 0xA: reg.setD(v); break;
+			case 0xB: reg.setE(v); break;
+			case 0xC: reg.setH(v); break;
+			case 0xD: reg.setL(v); break;
+			case 0xE:
+				write8(reg.getHL(), v);
+				break;
+			case 0xF: reg.setA(v); break;
+
+			default:
+				System.err.println("Bad CB Register Get!");
 				break;
 		}
 	}
@@ -1894,13 +1260,15 @@ public class Z80Executor {
 	}
 
 	private int nextAddr8() {
+		int ret = reg.getPC();
 		reg.setPC(reg.getPC() + 1);
-		return reg.getPC();
+		return ret;
 	}
 
 	private int nextAddr16() {
+		int ret = reg.getPC();
 		reg.setPC(reg.getPC() + 2);
-		return reg.getPC();
+		return ret;
 	}
 
 	private int read8(int address) {

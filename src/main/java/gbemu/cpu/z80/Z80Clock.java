@@ -9,4 +9,12 @@ public class Z80Clock {
 	public void inc(int amt) {
 		cycles += amt;
 	}
+
+	public long getCycles() {
+		return cycles;
+	}
+
+	public long getMachineCycles() {
+		return cycles << 2; // cycles * 4
+	}
 }
