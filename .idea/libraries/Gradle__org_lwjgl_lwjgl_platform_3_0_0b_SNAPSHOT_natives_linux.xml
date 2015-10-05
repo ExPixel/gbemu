@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="Gradle: org.lwjgl:lwjgl-platform:3.0.0b-SNAPSHOT:natives-linux">
-    <CLASSES>
-      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.lwjgl/lwjgl-platform/3.0.0b-SNAPSHOT/d434f1eae91368a3241b43d9f8408a1ddec2ec6a/lwjgl-platform-3.0.0b-SNAPSHOT-natives-linux.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
