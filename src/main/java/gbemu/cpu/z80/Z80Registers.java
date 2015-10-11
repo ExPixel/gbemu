@@ -97,7 +97,9 @@ public class Z80Registers {
 	public void setSP(int value) { this.SP = value & 0xffff; }
 
 	public int getPC() { return this.PC & 0xffff; }
-	public void setPC(int value) { this.PC = value & 0xffff; }
+	public void setPC(int value) {
+		this.PC = value & 0xffff;
+	}
 
 	/** Sets Zero Flag */
 	public void setZFlag() { AF |= 0b1000000; }

@@ -4,9 +4,14 @@ package gbemu.cpu.z80;
  * @author Adolph C.
  */
 public class Z80Clock {
+	/**
+	 * Monotonic clock.
+	 */
 	private long cycles = 0;
+	private long cyclesElapsed = 0;
 
 	public void inc(int amt) {
+		cyclesElapsed += amt;
 		cycles += amt;
 	}
 
@@ -15,6 +20,14 @@ public class Z80Clock {
 	}
 
 	public long getMachineCycles() {
-		return cycles << 2; // cycles * 4
+		return cycles / 4;
+	}
+
+	public long getCyclesElapsed() {
+		return cyclesElapsed;
+	}
+
+	public void clearCyclesElapsed() {
+		cyclesElapsed = 0;
 	}
 }

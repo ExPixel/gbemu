@@ -12,7 +12,7 @@ public class Z80ALU {
 
 	public int add8(int a, int b) {
 		int result = a + b;
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		reg.clearNFlag();
 		reg.putHFlag((a & 0xf) + (b & 0xf) > 0xf);
 		reg.putCFlag(result > 0xFF);
@@ -21,7 +21,7 @@ public class Z80ALU {
 
 	public int adc8(int a, int b) {
 		int result = a + b + (reg.getCFlag() ? 1 : 0);
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		reg.clearNFlag();
 		reg.putHFlag((a & 0xf) + (b & 0xf) + (reg.getCFlag() ? 1 : 0) > 0xf);
 		reg.putCFlag(result > 0xFF);
@@ -30,7 +30,7 @@ public class Z80ALU {
 
 	public int sub8(int a, int b) {
 		int result = a - b;
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		reg.setNFlag();
 		reg.putHFlag(((a - b)&0xF) > (a & 0xF));
 		reg.putCFlag(result < 0);
@@ -41,7 +41,7 @@ public class Z80ALU {
 		int _c = (reg.getCFlag() ? 1 : 0);
 		int temp = _c + b;
 		int result = a - b - _c;
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		reg.setNFlag();
 		reg.putHFlag(((a & 0xF) - (b & 0xF) - _c) < 0);
 		reg.putCFlag(result < 0);
@@ -51,14 +51,14 @@ public class Z80ALU {
 	public int inc8(int a) {
 		reg.putHFlag((a & 0xF) == 0xF);
 		a++;
-		reg.putZFlag(a == 0);
+		checkZ8(a);
 		reg.clearNFlag();
 		return a;
 	}
 
 	public int dec8(int a) {
 		a--;
-		reg.putZFlag(a == 0);
+		checkZ8(a);
 		reg.setNFlag();
 		reg.putHFlag((a & 0xF) == 0xF);
 		return a;
@@ -67,14 +67,14 @@ public class Z80ALU {
 	public int xor(int a, int b) {
 		int result = a ^ b;
 		reg.setF(0);
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		return result;
 	}
 
 	public int and(int a, int b) {
 		int result = a & b;
 		reg.setF(0);
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		reg.setHFlag();
 		return result;
 	}
@@ -82,7 +82,7 @@ public class Z80ALU {
 	public int or(int a, int b) {
 		int result = a | b;
 		reg.setF(0);
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		return result;
 	}
 
@@ -147,7 +147,7 @@ public class Z80ALU {
 	 * Adjust A for BCD addition.
 	 */
 	public void daa() {
-		// todo
+		// todo Make this function.
 	}
 
 	/**
@@ -168,7 +168,7 @@ public class Z80ALU {
 		int temp = (i & 0x80) >> 7;
 		int result = (i << 1) | temp;
 		reg.putCFlag(temp == 1);
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		return result;
 	}
 
@@ -181,7 +181,7 @@ public class Z80ALU {
 		int temp = i & 1;
 		reg.putCFlag(temp == 1);
 		int result = (i >> 1) | (temp << 7);
-		reg.putZFlag(result == 0);
+		checkZ8(result);
 		return result;
 	}
 
@@ -194,7 +194,7 @@ public class Z80ALU {
 		reg.putCFlag((i & 1) == 1);
 		int temp = reg.getCFlag() ? 1 : 0;
 		i = (i >> 1) | (temp << 7);
-		reg.putZFlag(i == 0);
+		checkZ8(i);
 		return i;
 	}
 
@@ -207,7 +207,7 @@ public class Z80ALU {
 		reg.putCFlag((i & 1) == 1);
 		int temp = i & 0x80;
 		i = i >> 1 | temp;
-		reg.putZFlag(i == 0);
+		checkZ8(i);
 		return i;
 	}
 
@@ -219,7 +219,7 @@ public class Z80ALU {
 	public int srl(int i) {
 		reg.putCFlag((i & 1) == 1);
 		i = i >> 1;
-		reg.putZFlag(i == 0);
+		checkZ8(i);
 		return i;
 	}
 
@@ -229,7 +229,7 @@ public class Z80ALU {
 	 * @param b bit to test
 	 */
 	public void bit(int i, int b) {
-		reg.putZFlag((i & (1 << b)) == 0);
+		checkZ8((i & (1 << b)));
 		reg.clearNFlag();
 		reg.setHFlag();
 	}
@@ -263,7 +263,7 @@ public class Z80ALU {
 	public int rl(int i) {
 		reg.putCFlag((i & 0x80) != 0);
 		i = (i << 1) | (reg.getCFlag() ? 1 : 0);
-		reg.putZFlag(i == 0);
+		checkZ8(i);
 		return i;
 	}
 
@@ -275,7 +275,7 @@ public class Z80ALU {
 	public int sla(int i) {
 		reg.putCFlag((i & 0x80) != 0);
 		i = i << 1;
-		reg.putZFlag(i == 0);
+		checkZ8(i);
 		return i;
 	}
 
@@ -287,7 +287,15 @@ public class Z80ALU {
 	public int swap(int i) {
 		int result = ((i & 0xF) << 4) | ((i & 0xF0) >> 4);
 		reg.setF(0);
-		reg.putZFlag(result == 0);
+		checkZ8(i);
 		return result;
+	}
+
+	private void checkZ8(int a) {
+		reg.putZFlag((a & 0xff) == 0);
+	}
+
+	private void checkZ16(int a) {
+		reg.putZFlag((a & 0xffff) == 0);
 	}
 }

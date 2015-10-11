@@ -1,18 +1,18 @@
 package gbemu.cpu.z80;
 
-import gbemu.cpu.memory.IMemory;
+import gbemu.cpu.memory.GBMemory;
 
 /**
  * @author Adolph C.
  */
 public class Z80Executor {
 	private Z80Cpu cpu;
-	private IMemory memory;
+	private GBMemory memory;
 	private Z80Registers reg;
 	private Z80Clock clock;
 	private Z80ALU alu;
 
-	public Z80Executor(Z80Cpu cpu, IMemory memory, Z80Registers reg, Z80Clock clock, Z80ALU alu) {
+	public Z80Executor(Z80Cpu cpu, GBMemory memory, Z80Registers reg, Z80Clock clock, Z80ALU alu) {
 		this.cpu = cpu;
 		this.memory = memory;
 		this.reg = reg;
@@ -37,6 +37,14 @@ public class Z80Executor {
 	public void execute(int instr) {
 		// work integers 1 & 2
 		int w0; // Have to define this outside (switch is one big scope)
+
+//		if(cpu.getLastExecutedAddress() == 0x0661) {
+//			System.out.print("");
+//		}
+//
+//		if(cpu.getLastExecutedAddress() == 0x06f1) {
+//			System.out.print("");
+//		}
 
 		switch (instr & 0xff) {
 			case 0x00: // opcode:NOP | flags:- - - - | length: 1
@@ -137,6 +145,7 @@ public class Z80Executor {
 			case 0x18: // opcode:JR r8 | flags:- - - - | length: 2
 				w0 = ext8(next8());
 				reg.setPC(reg.getPC() + w0);
+				cpu.onJump(reg.getPC());
 				clock.inc(12);
 				break;
 			case 0x19: // opcode:ADD HL,DE | flags:- 0 H C | length: 1
@@ -171,6 +180,7 @@ public class Z80Executor {
 				if (!reg.getZFlag()) {
 					w0 = ext8(next8());
 					reg.setPC(reg.getPC() + w0);
+					cpu.onJump(reg.getPC());
 					clock.inc(12);
 				} else {
 					next8();
@@ -210,6 +220,7 @@ public class Z80Executor {
 				if (reg.getZFlag()) {
 					w0 = ext8(next8());
 					reg.setPC(reg.getPC() + w0);
+					cpu.onJump(reg.getPC());
 					clock.inc(12);
 				} else {
 					next8();
@@ -249,6 +260,7 @@ public class Z80Executor {
 				if (!reg.getCFlag()) {
 					w0 = ext8(next8());
 					reg.setPC(reg.getPC() + w0);
+					cpu.onJump(reg.getPC());
 					clock.inc(12);
 				} else {
 					next8();
@@ -294,6 +306,7 @@ public class Z80Executor {
 				if (reg.getCFlag()) {
 					w0 = ext8(next8());
 					reg.setPC(reg.getPC() + w0);
+					cpu.onCall(reg.getPC());
 					clock.inc(12);
 				} else {
 					next8();
@@ -326,9 +339,10 @@ public class Z80Executor {
 				clock.inc(8);
 				break;
 			case 0x3F: // opcode:CCF | flags:- 0 0 C | length: 1
+				// todo make sure that this is right.
 				reg.clearNFlag();
 				reg.clearHFlag();
-				reg.setCFlag();
+				reg.putCFlag(!reg.getCFlag());
 				clock.inc(4);
 				break;
 			case 0x40: // opcode:LD B,B | flags:- - - - | length: 1
@@ -780,35 +794,35 @@ public class Z80Executor {
 				clock.inc(4);
 				break;
 			case 0xB0: // opcode:OR B | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), reg.getB()));
+				reg.setA(alu.or(reg.getA(), reg.getB()));
 				clock.inc(4);
 				break;
 			case 0xB1: // opcode:OR C | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), reg.getC()));
+				reg.setA(alu.or(reg.getA(), reg.getC()));
 				clock.inc(4);
 				break;
 			case 0xB2: // opcode:OR D | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), reg.getD()));
+				reg.setA(alu.or(reg.getA(), reg.getD()));
 				clock.inc(4);
 				break;
 			case 0xB3: // opcode:OR E | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), reg.getE()));
+				reg.setA(alu.or(reg.getA(), reg.getE()));
 				clock.inc(4);
 				break;
 			case 0xB4: // opcode:OR H | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), reg.getH()));
+				reg.setA(alu.or(reg.getA(), reg.getH()));
 				clock.inc(4);
 				break;
 			case 0xB5: // opcode:OR L | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), reg.getL()));
+				reg.setA(alu.or(reg.getA(), reg.getL()));
 				clock.inc(4);
 				break;
 			case 0xB6: // opcode:OR (HL) | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), read8(reg.getHL())));
+				reg.setA(alu.or(reg.getA(), read8(reg.getHL())));
 				clock.inc(8);
 				break;
 			case 0xB7: // opcode:OR A | flags:Z 0 0 0 | length: 1
-				reg.setB(alu.or(reg.getA(), reg.getA()));
+				reg.setA(alu.or(reg.getA(), reg.getA()));
 				clock.inc(4);
 				break;
 			case 0xB8: // opcode:CP B | flags:Z 1 H C | length: 1
@@ -858,6 +872,7 @@ public class Z80Executor {
 			case 0xC2: // opcode:JP NZ,a16 | flags:- - - - | length: 3
 				if(!reg.getZFlag()) {
 					reg.setPC(next16());
+					cpu.onJump(reg.getPC());
 					clock.inc(16);
 				} else {
 					next16();
@@ -866,6 +881,7 @@ public class Z80Executor {
 				break;
 			case 0xC3: // opcode:JP a16 | flags:- - - - | length: 3
 				reg.setPC(next16());
+				cpu.onJump(reg.getPC());
 				clock.inc(16);
 				break;
 			case 0xC4: // opcode:CALL NZ,a16 | flags:- - - - | length: 3
@@ -873,6 +889,7 @@ public class Z80Executor {
 					call(next16());
 					clock.inc(24);
 				} else {
+					next16();
 					clock.inc(12);
 				}
 				break;
@@ -890,19 +907,20 @@ public class Z80Executor {
 				break;
 			case 0xC8: // opcode:RET Z | flags:- - - - | length: 1
 				if(reg.getZFlag()) {
-					reg.setPC(pop16());
+					ret();
 					clock.inc(20);
 				} else {
 					clock.inc(8);
 				}
 				break;
 			case 0xC9: // opcode:RET | flags:- - - - | length: 1
-				reg.setPC(pop16());
+				ret();
 				clock.inc(16);
 				break;
 			case 0xCA: // opcode:JP Z,a16 | flags:- - - - | length: 3
 				if(reg.getZFlag()) {
 					reg.setPC(next16());
+					cpu.onJump(reg.getPC());
 					clock.inc(16);
 				} else {
 					next16();
@@ -936,7 +954,7 @@ public class Z80Executor {
 				break;
 			case 0xD0: // opcode:RET NC | flags:- - - - | length: 1
 				if(!reg.getNFlag()) {
-					reg.setPC(pop16());
+					ret();
 					clock.inc(20);
 				} else {
 					clock.inc(8);
@@ -949,6 +967,7 @@ public class Z80Executor {
 			case 0xD2: // opcode:JP NC,a16 | flags:- - - - | length: 3
 				if(!reg.getCFlag()) {
 					reg.setPC(next16());
+					cpu.onJump(reg.getPC());
 					clock.inc(16);
 				} else {
 					next16();
@@ -978,7 +997,7 @@ public class Z80Executor {
 				break;
 			case 0xD8: // opcode:RET C | flags:- - - - | length: 1
 				if(reg.getCFlag()) {
-					reg.setPC(pop16());
+					ret();
 					clock.inc(20);
 				} else {
 					clock.inc(8);
@@ -991,6 +1010,7 @@ public class Z80Executor {
 			case 0xDA: // opcode:JP C,a16 | flags:- - - - | length: 3
 				if(reg.getCFlag()) {
 					reg.setPC(next16());
+					cpu.onJump(reg.getPC());
 					clock.inc(16);
 				} else {
 					next16();
@@ -1052,6 +1072,7 @@ public class Z80Executor {
 			case 0xE9: // opcode:JP (HL) | flags:- - - - | length: 1
 				// fixme confusing parenthesis, is (HL) an address or just the register?
 				reg.setPC(reg.getHL());
+				cpu.onJump(reg.getPC());
 				clock.inc(4);
 				break;
 			case 0xEA: // opcode:LD (a16),A | flags:- - - - | length: 3
@@ -1126,7 +1147,7 @@ public class Z80Executor {
 			default:
 				// This should probably be done differently in order to mix well with
 				// removed instructions. Maybe those should be causing errors though :\
-				System.err.printf("Undefined instruction %02x\n", instr);
+				System.err.printf("[%04x] undefined instruction 0x%02x\n", reg.getPC()-1, instr);
 				break;
 		}
 	}
@@ -1153,6 +1174,9 @@ public class Z80Executor {
 				case 0xD: cbRegSet(register, alu.set(cbRegGet(register), 3)); break;
 				case 0xE: cbRegSet(register, alu.set(cbRegGet(register), 5)); break;
 				case 0xF: cbRegSet(register, alu.set(cbRegGet(register), 7)); break;
+				default:
+					System.out.printf("[%04x] undefined cb instruction %02x", reg.getPC()-1, instr);
+					break;
 			}
 		} else {
 			switch(cbinstr) {
@@ -1172,6 +1196,9 @@ public class Z80Executor {
 				case 0xD: cbRegSet(register, alu.set(cbRegGet(register), 2)); break;
 				case 0xE: cbRegSet(register, alu.set(cbRegGet(register), 4)); break;
 				case 0xF: cbRegSet(register, alu.set(cbRegGet(register), 6)); break;
+				default:
+					System.out.printf("[%04x] undefined cb instruction %02x", reg.getPC()-1, instr);
+					break;
 			}
 		}
 		clock.inc(4);
@@ -1233,7 +1260,14 @@ public class Z80Executor {
 		}
 	}
 
+	private void ret() {
+		int from = reg.getPC();
+		reg.setPC(pop16());
+		cpu.onRet(from, reg.getPC());
+	}
+
 	private void call(int addr) {
+		cpu.onCall(addr);
 		this.push16(reg.getPC());
 		reg.setPC(addr);
 	}
@@ -1280,7 +1314,7 @@ public class Z80Executor {
 	}
 
 	private int read16(int address) {
-		return memory.read8(address);
+		return memory.read16(address);
 	}
 
 	private void write16(int address, int value) {

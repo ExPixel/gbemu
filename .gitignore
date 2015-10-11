@@ -16,3 +16,9 @@ hs_err_pid*
 
 # IntelliJ Stuff
 .idea/
+
+# Licensed stuff that shouldn't appear in the repository
+roms/licensed/
+
+# A massive file containing register values after every instruction of cpu_instrs.gb
+roms/registers.dmp
