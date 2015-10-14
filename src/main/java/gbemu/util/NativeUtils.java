@@ -23,17 +23,10 @@ public class NativeUtils {
 			int read;
 			while((read = stream.read(readBuffer)) != -1)
 				out.write(readBuffer, 0, read);
-			return wrap(out.toByteArray());
+			return wrapBytes(out.toByteArray());
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	public static ByteBuffer wrap(byte...data) {
-		ByteBuffer buffer = BufferUtils.createByteBuffer(data.length);
-		buffer.put(data);
-		buffer.flip();
-		return buffer;
 	}
 
 	public static ByteBuffer readFileToBuffer(String file) {
@@ -46,6 +39,13 @@ public class NativeUtils {
 		} catch (IOException e) {
 			throw new IllegalStateException(e);
 		}
+	}
+
+	public static ByteBuffer wrapBytes(byte...data) {
+		ByteBuffer buffer = BufferUtils.createByteBuffer(data.length);
+		buffer.put(data);
+		buffer.flip();
+		return buffer;
 	}
 
 	public static FloatBuffer wrapFloats(float...data) {

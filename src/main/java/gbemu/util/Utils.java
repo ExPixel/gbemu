@@ -64,6 +64,16 @@ public class Utils {
 		}
 	}
 
+	public static String getByteSizeString(long bytes) {
+		if(bytes > 0x100000) {
+			return (bytes / 0x100000) + " MB";
+		} else if(bytes > 0x400) {
+			return (bytes / 0x400) + " KB";
+		} else {
+			return bytes + " B";
+		}
+	}
+
 	public static void dumpRegisters(Z80Registers r) {
 		System.out.println("--- Register Dump ---");
 		System.out.printf("AF = 0x%04x (%d)\n", r.getAF(), r.getAF());

@@ -1,5 +1,6 @@
 package gbemu.graphics;
 
+import gbemu.glutil.Disposable;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWKeyCallback;
 import org.lwjgl.glfw.GLFWVidMode;
@@ -12,16 +13,16 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 /**
  * @author Adolph C.
  */
-public class LWJGLContainer {
+public class LWJGLContainer implements Disposable {
 	private GLFWErrorCallback errorCallback;
 	private GLFWKeyCallback keyCallback;
 	private long window;
 
-	private static final int WINDOW_HEIGHT = 640; // 160;
-	private static final int WINDOW_WIDTH = 480; // 144;
+	public static final int WINDOW_WIDTH = 160;
+	public static final int WINDOW_HEIGHT = 144;
 
 	public void init() {
-		glfwSetErrorCallback(errorCallback = GLFWErrorCallback.createPrint());
+		glfwSetErrorCallback(errorCallback = GLFWErrorCallback.createPrint(System.err));
 		if(glfwInit()!= GL_TRUE)
 			throw new IllegalStateException("Unable to initialize GLFW");
 
@@ -29,9 +30,10 @@ public class LWJGLContainer {
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 		glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
-		glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+		glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 		window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "GameBoy Emulator", NULL, NULL);
 		if(window == NULL)
@@ -75,12 +77,11 @@ public class LWJGLContainer {
 
 	public void loop(LWJGLFrameHandler handler) {
 		// Set the clear color
-		glClearColor(0.2f, 0.2f, 0.2f, 0.2f);
+		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 
 		double lastFrameTime = glfwGetTime();
 
 		// Some initialization functions for...things.
-		glEnable(GL_TEXTURE_2D);
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -109,5 +110,12 @@ public class LWJGLContainer {
 
 	public long getWindow() {
 		return window;
+	}
+
+	@Override
+	public void dispose() {
+		this.keyCallback.release();
+		this.errorCallback.release();
+		glfwTerminate();
 	}
 }

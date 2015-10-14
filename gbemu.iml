@@ -15,6 +15,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Maven: org.lwjgl:lwjgl:3.0.0b-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: org.lwjgl:lwjgl-platform:natives-osx:3.0.0b-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Maven: org.lwjgl:lwjgl-platform:natives-windows:3.0.0b-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: org.joml:joml:1.6.6-SNAPSHOT" level="project" />
   </component>
 </module>
