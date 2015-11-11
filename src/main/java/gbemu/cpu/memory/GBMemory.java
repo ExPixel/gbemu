@@ -11,6 +11,14 @@ import java.nio.ByteOrder;
 public class GBMemory {
 	private GBCartridge cartridge;
 	private final ByteBuffer data;
+	public final IOPorts ioPorts = new IOPorts();
+	private GBMemoryListener listener;
+
+
+	public interface GBMemoryListener {
+		void onWrite8(int address, int data);
+		void onWrite16(int address, int data);
+	}
 
 	public ByteBuffer getData() {
 		return data;
@@ -22,7 +30,7 @@ public class GBMemory {
 	private boolean b16 = false;
 
 	public GBMemory() {
-		this.data = ByteBuffer.allocateDirect(0xFFFF + 1);
+		this.data = ByteBuffer.allocateDirect(0xFFFF + 1); // Not all of this is used.
 		data.order(ByteOrder.LITTLE_ENDIAN);
 	}
 
@@ -41,6 +49,7 @@ public class GBMemory {
 	}
 
 	public int read8(int address) {
+		if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) return this.ioPorts.read8(address);
 		if(address >= 0xE000 && address <= 0xFE00) {
 			/*
 			The addresses E000-FE00 appear to access the internal
@@ -57,7 +66,9 @@ public class GBMemory {
 	}
 
 	public void write8(int address, int value) {
-		if(address >= 0xE000 && address <= 0xFE00) {
+		if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
+			this.ioPorts.write8(address, value & 0xff);
+		} else if(address >= 0xE000 && address <= 0xFE00) {
 			/*
 			The addresses E000-FE00 appear to access the internal
 			RAM the same as C000-DE00. (i.e. If you write a byte to
@@ -71,7 +82,7 @@ public class GBMemory {
 			cartridge.getMbc().write8(address, value);
 			return;
 		}
-		onWrite8(address, value & 0xff);
+		onWrite8(address, value);
 		data.put(address, (byte) (value & 0xff)); // removes sign extension
 	}
 
@@ -88,11 +99,14 @@ public class GBMemory {
 	}
 
 	private void onWrite8(int addr, int data) {
-		if(addr == 0xDEF8) {
-			System.out.println("...");
-		}
+		if(this.listener != null) this.listener.onWrite8(addr, data & 0xff);
 	}
 
 	private void onWrite16(int addr, int data) {
+		if(this.listener != null) this.listener.onWrite16(addr, data & 0xffff);
+	}
+
+	public void setListener(GBMemoryListener listener) {
+		this.listener = listener;
 	}
 }

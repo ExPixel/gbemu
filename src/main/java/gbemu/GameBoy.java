@@ -5,11 +5,17 @@ import gbemu.cpu.memory.cartridge.GBCartridge;
 import gbemu.cpu.z80.Z80Cpu;
 import gbemu.graphics.GameBoyLCD;
 import gbemu.graphics.LWJGLContainer;
+import gbemu.graphics.LWJGLKeyListener;
+import org.lwjgl.glfw.GLFW;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 /**
  * @author Adolph C.
  */
-public class GameBoy {
+public class GameBoy implements LWJGLKeyListener {
 	private GBCartridge cartridge;
 	private GBMemory memory;
 	private Z80Cpu cpu;
@@ -78,8 +84,39 @@ public class GameBoy {
 
 	public void run() {
 		lcd.init();
+		this.lwjglContainer.setKeyListener(this);
 		this.lwjglContainer.loop(lcd::render);
 		lcd.dispose();
 		this.lwjglContainer.dispose();
+	}
+
+	@Override
+	public void onKeyEvent(int key, int scancode, int action, int mods) {
+		if(action == GLFW.GLFW_PRESS) {
+			if (key == GLFW.GLFW_KEY_D && (mods & GLFW.GLFW_MOD_CONTROL) != 0) {
+				File file = new File("debug/memory.dmp");
+				file.getParentFile().mkdirs();
+				try(FileOutputStream stream = new FileOutputStream(file)) {
+					for(int idx = 0; idx <= 0xFFFF; idx++) {
+						stream.write(memory.read8(idx));
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				System.out.println("Dumped memory.");
+			}
+		}
+	}
+
+	public GBCartridge getCartridge() {
+		return cartridge;
+	}
+
+	public GBMemory getMemory() {
+		return memory;
+	}
+
+	public Z80Cpu getCpu() {
+		return cpu;
 	}
 }

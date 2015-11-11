@@ -7,6 +7,7 @@ import gbemu.glutil.*;
 import gbemu.graphics.util.FrameCounter;
 import gbemu.util.NativeUtils;
 import gbemu.util.Utils;
+import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
@@ -24,7 +25,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 
 	/**
 	 * Memory object that this will use to communicate
-	 * with the CPU and retrieve the pixels that
+	 * with the CPU and retrieve the PIXELS that
 	 * are to be drawn on the screen.
 	 */
 	private final GBMemory memory;
@@ -40,12 +41,18 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	private long renderedFrames = 0;
 	private long renderedLines = 0;
 
-	private static int SCREEN_W = 160;
-	private static int SCREEN_H = 144;
+	private static final int SCREEN_W = 160;
+	private static final int SCREEN_H = 144;
+
+	/**
+	 * The size of the display's data in bytes.
+	 */
+	private static final int GB_SCREEN_BYTES = 3 * SCREEN_W * SCREEN_H;
 
 	ByteBuffer screenData;
 	Texture screenTexture;
 	private int currentLine;
+	private Vector3f textColor = new Vector3f(255, 0, 255).div(255);
 
 	public GameBoyLCD(long window, Z80Cpu cpu, GBMemory memory) {
 		this.window = window;
@@ -57,7 +64,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		frameCounter = new FrameCounter();
 		gameBoyFrameCounter = new FrameCounter();
 		renderer = new Renderer();
-		fontRenderer = new FontRenderer(12, NativeUtils.readResourceToBuffer("/gbemu/res/Roboto-Regular.ttf"));
+		fontRenderer = new FontRenderer(12, NativeUtils.readResourceToBuffer("/gbemu/res/Tahoma.ttf"));
 		renderer.setFontRenderer(fontRenderer);
 
 		String vertexShaderResource = "/gbemu/res/basic_shader.vert";
@@ -67,16 +74,11 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		Shader fragmentShader = new Shader(Shader.FRAGMENT_SHADER,
 				Utils.readResourceIntoString(fragmentShaderResource));
 		renderer.init(new ShaderProgram(vertexShader, fragmentShader));
-
-		final int pixels = 3 * SCREEN_W * SCREEN_H;
-		screenData = BufferUtils.createByteBuffer(pixels);
-		for(int idx = 0; idx < pixels; idx += 3) {
-			screenData.put((byte) (idx & 0xFF));
-			screenData.put((byte) ((idx >> 8) & 0xFF));
-			screenData.put((byte) ((idx >> 16) & 0xFF));
-		}
-		screenData.flip();
+		screenData = BufferUtils.createByteBuffer(GB_SCREEN_BYTES);
+		screenData.limit(GB_SCREEN_BYTES);
 		screenTexture = new Texture();
+		screenTexture.setFilterMin(GL11.GL_NEAREST);
+		screenTexture.setFilterMax(GL11.GL_NEAREST);
 		screenTexture.setInternalFormat(GL11.GL_RGB8);
 		screenTexture.setImageFormat(GL11.GL_RGB);
 		screenTexture.create(SCREEN_W, SCREEN_H, screenData);
@@ -100,6 +102,13 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		frameCounter.frame(delta);
 	}
 
+	private String bin8(int a) {
+		String bin = Integer.toBinaryString(a);
+		StringBuilder b = new StringBuilder();
+		while(b.length() + bin.length() < 8) b.append('0');
+		return b.append(bin).toString();
+	}
+
 	private void renderInfo() {
 		StringBuilder info = new StringBuilder();
 		info.append("FPS: ").append(frameCounter.getFPS()).append('\n');
@@ -109,6 +118,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		info.append("Clock Cycles: ").append(String.format("%,d", cpu.clock.getCycles())).append('\n');
 		info.append("Machine Cycles: ").append(String.format("%,d", cpu.clock.getMachineCycles())).append('\n');
 		info.append("Program Counter: ").append(String.format("0x%04d", cpu.reg.getPC())).append('\n');
+		info.append("LCDC: ").append(bin8(memory.ioPorts.LCDC)).append('\n');
 
 		Runtime runtime = Runtime.getRuntime();
 		long free = runtime.freeMemory();
@@ -120,54 +130,155 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 				.append(' ').append('/').append(' ')
 				.append(Utils.getByteSizeString(total));
 
-		renderer.drawText(8, 24, GLColor.white3, info.toString());
+		renderer.drawText(8, 24, textColor, info.toString());
 	}
 
 	private static int offset = 16;
 
 	public void drawSomeLines() {
-		int allowed = 10;
+		int allowed = Math.max(this.frameCounter.getFPS() / 143, 1);
 		// todo For now I want the last line drawn in the drawFrame method but this might not be necessary.
-		for(int drawn = 0; currentLine < 143 && drawn < allowed; drawn++) {
-			this.cpu.executeCycles(436); // or 439
-			this.line(currentLine);
-			currentLine++;
+		for(int drawn = 0; currentLine < 143 && drawn < allowed; drawn++, currentLine++) {
+			processLine(false);
 		}
 	}
 
 	public void drawFrame() {
 		gameBoyFrameCounter.frame(frameDelta);
 		this.frameDelta = 0;
-		for(currentLine = 0; currentLine < 144; currentLine++) {
-			this.cpu.executeCycles(436); // or 439
-			this.line(currentLine);
-		}
+
+		this.runVDraw();
+		this.runVBlank();
 		currentLine = 0;
 
-
-		final int pixels = 3 * SCREEN_W * SCREEN_H;
-		screenData.clear();
-		for(int idx = 0; idx < pixels; idx += 3) {
-			screenData.put((byte) ((idx + offset) & 0xFF));
-			screenData.put((byte) (((idx + offset) >> 8) & 0xFF));
-			screenData.put((byte) (((idx + offset) >> 16) & 0xFF));
-		}
 		screenData.flip();
+		screenData.limit(GB_SCREEN_BYTES); // I set a hard limit so that the entire buffer is used.
 		this.screenTexture.update(screenData);
-		offset += 8;
+		screenData.flip();
+		screenData.limit(GB_SCREEN_BYTES);
 
 
 		this.renderedFrames++;
 	}
 
-	private void line(int line) {
+	private void runVDraw() {
+		this.handleVDrawValues();
+		for(currentLine = 0; currentLine < 144; currentLine++) {
+			processLine(false);
+		}
+	}
+
+	private void runVBlank() {
+		this.handleVBlankValues();
+		for (currentLine = 144; currentLine < 154; currentLine++) {
+			processLine(true);
+		}
+	}
+
+	private void processLine(boolean vblank) {
+		this.memory.ioPorts.LY = this.currentLine;
+		this.handleHDrawValues();
+		this.cpu.executeCycles(436); // or 439
+		if(!vblank) this.line();
+		this.handleHBlankValues();
+		this.cpu.executeCycles(262); // Hblank
+	}
+
+	/**
+	 * Pokes a pixel into the current frame.
+	 * @param x The x coordinate of the pixel.
+	 * @param y The y coordinate of the pixel.
+	 * @param color The color of the pixel.
+	 */
+	private void poke(int x, int y, int color) {
+		try {
+			if (x > SCREEN_W || y > SCREEN_H) return;
+			int offset = (x * 3) + ((y * 3) * SCREEN_W);
+			this.screenData.put(offset, (byte) (color & 0xFF));
+			this.screenData.put(offset + 1, (byte) ((color >> 8) & 0xFF));
+			this.screenData.put(offset + 2, (byte) ((color >> 8) & 0xFF));
+		} catch(Exception e) {
+		}
+	}
+
+	private void pokeP(int x, int y, int paletteColor) {
+		poke(x, y, colors[paletteColor]);
+	}
+
+	private void line() {
+//		 drawTiles();
+		 drawBGLine();
 		this.renderedLines++;
+	}
+
+	private static int[] colors = {0xBBBBBB, 0x999999, 0x777777, 0x555555};
+
+	private void drawTileLine(int least8, int most8, int dx, int dy) {
+		for(int i = 7; i >= 0; i--) {
+			int c = (least8 & 1) | ((most8 & 1) << 1);
+			pokeP(dx++, dy, c);
+			least8 >>= 1;
+			most8 >>= 1;
+		}
+	}
+
+	private int signExtendTile(int tile) {
+		return (tile << 24) >> 24;
+	}
+
+	public void drawFirstTile() {
+		if(currentLine > 7) return;
+		int bgTileDataSelect = (memory.ioPorts.LCDC & 0x10) == 0 ? 0x8800 : 0x8000;
+		bgTileDataSelect += currentLine * 2;
+		drawTileLine(memory.read8(bgTileDataSelect), memory.read8(bgTileDataSelect + 1), 0, currentLine);
+	}
+
+	public void drawTiles() {
+		int bgTileDataSelect = (memory.ioPorts.LCDC & 0x10) == 0 ? 0x8800 : 0x8000;
+		int tile = bgTileDataSelect + ((currentLine / 8) * 16) + (currentLine * 2);
+		for(int x = 0; x < SCREEN_W; x += 8) {
+			drawTileLine(memory.read8(tile), memory.read8(tile + 1), x, currentLine);
+			tile += 16;
+		}
+	}
+
+	public void drawBGLine() {
+		int bgTileDataSelect = (memory.ioPorts.LCDC & 0x10) == 0 ? 0x8800 : 0x8000;
+		int bgTileMapSelect = (memory.ioPorts.LCDC & 0b1000) == 0 ? 0x9800 : 0x9C00;
+
+	}
+
+	public void drawWindow() {
+	}
+
+	private void handleVDrawValues() {
+		this.memory.ioPorts.LCDC &= ~3;
+		this.memory.ioPorts.LCDC |= 3;
+	}
+
+	private void handleVBlankValues() {
+		this.memory.ioPorts.LCDC &= ~3;
+		this.memory.ioPorts.LCDC |= 1;
+	}
+
+	/**
+	 * Handles IO port values and interrupts for hdraw.
+	 */
+	private void handleHDrawValues() {
+		this.memory.ioPorts.LCDC &= ~3;
+		this.memory.ioPorts.LCDC |= 2;
+	}
+
+	/**
+	 * Handles IO port values and interrupts for hblank.
+	 */
+	private void handleHBlankValues() {
+		this.memory.ioPorts.LCDC &= ~3; // This is just clear during hblank
 	}
 
 	public void dispose() {
 		this.screenTexture.dispose();
 		this.renderer.dispose();
 		this.fontRenderer.dispose();
-//		MemoryUtil.memFree(this.screenData);
 	}
 }

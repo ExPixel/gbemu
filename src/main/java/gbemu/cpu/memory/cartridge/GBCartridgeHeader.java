@@ -66,4 +66,52 @@ public class GBCartridgeHeader {
 	}
 
 	private static int u8(byte b) { return ((int)b) & 0xff; }
+
+	public String getGameTitle() {
+		return gameTitle;
+	}
+
+	public boolean isColorGB() {
+		return colorGB;
+	}
+
+	public int getLicenseeCode() {
+		return licenseeCode;
+	}
+
+	public boolean isSgbFunctions() {
+		return sgbFunctions;
+	}
+
+	public int getCartridgeType() {
+		return cartridgeType;
+	}
+
+	public int getRomSize() {
+		return romSize;
+	}
+
+	public int getRamSize() {
+		return ramSize;
+	}
+
+	public int getDestinationCode() {
+		return destinationCode;
+	}
+
+	public int getOldLicenseeCode() {
+		return oldLicenseeCode;
+	}
+
+	public int getMaskRomVersionNumber() {
+		return maskRomVersionNumber;
+	}
+
+	public int getComplementCheck() {
+		return complementCheck;
+	}
+
+	public int getChecksum() {
+		return checksum;
+	}
 }

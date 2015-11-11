@@ -13,8 +13,22 @@ public class GBCartridge {
 	public GBCartridge(ByteBuffer cartridgeData) {
 		this.cartridgeData = cartridgeData;
 		this.header = GBCartridgeHeader.from(cartridgeData);
-		this.mbc = new MBC1(header, this.cartridgeData);
-				//new NoMBC(this.cartridgeData); // todo need to get the real MBC chip somewhere and put it here.
+		this.loadMBCChip();
+	}
+
+	private void loadMBCChip() {
+		int cartridgeType = this.header.getCartridgeType();
+		switch(cartridgeType) {
+			case 0:
+				this.mbc = new NoMBC(this.cartridgeData);
+				break;
+			case 1:
+				this.mbc = new MBC1(header, this.cartridgeData);
+				break;
+			default:
+				String cartridgeString = CartridgeDataMaps.cartridgeTypes.get(cartridgeType);
+				throw new IllegalStateException("Unsupported cartridge type: " + cartridgeString);
+		}
 	}
 
 	public MBC getMbc() {

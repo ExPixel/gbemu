@@ -58,13 +58,13 @@ public class Z80Registers {
 	}
 
 	public int getAF() { return AF & 0xffff; }
-	public void setAF(int value) { AF = value & 0xffff; }
+	public void setAF(int value) { AF = value & 0xffff; AF &= ~0xf; }
 
 	public int getA() { return getHigh(AF); }
 	public void setA(int value) { AF = setHigh(AF, value); }
 
 	public int getF() { return getLow(AF); }
-	public void setF(int value) { AF = setLow(AF, value); }
+	public void setF(int value) { AF = setLow(AF, value); AF &= ~0xf; }
 
 	public int getBC() { return BC & 0xffff; }
 	public void setBC(int value) { BC = value & 0xffff; }

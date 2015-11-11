@@ -1004,8 +1004,8 @@ public class Z80Executor {
 				}
 				break;
 			case 0xD9: // opcode:RETI | flags:- - - - | length: 1
-				// clock.inc(16);
-				cpu.removedInstr();
+				this.memory.ioPorts.IME = 1;
+				this.ret();
 				break;
 			case 0xDA: // opcode:JP C,a16 | flags:- - - - | length: 3
 				if(reg.getCFlag()) {
@@ -1100,7 +1100,7 @@ public class Z80Executor {
 				cpu.removedInstr();
 				break;
 			case 0xF3: // opcode:DI | flags:- - - - | length: 1
-				// todo Should I set (0xffffh) to 1, 0, 0xff????
+				memory.ioPorts.IME = 0;
 				clock.inc(4);
 				break;
 			case 0xF5: // opcode:PUSH AF | flags:- - - - | length: 1
@@ -1134,7 +1134,7 @@ public class Z80Executor {
 				clock.inc(16);
 				break;
 			case 0xFB: // opcode:EI | flags:- - - - | length: 1
-				// todo enable interrupts, see 0xF3
+				memory.ioPorts.IME = 1;
 				clock.inc(4);
 				break;
 			case 0xFE: // opcode:CP d8 | flags:Z 1 H C | length: 2
@@ -1260,25 +1260,25 @@ public class Z80Executor {
 		}
 	}
 
-	private void ret() {
+	public void ret() {
 		int from = reg.getPC();
 		reg.setPC(pop16());
 		cpu.onRet(from, reg.getPC());
 	}
 
-	private void call(int addr) {
+	public void call(int addr) {
 		cpu.onCall(addr);
 		this.push16(reg.getPC());
 		reg.setPC(addr);
 	}
 
-	private int pop16() {
+	public int pop16() {
 		int data = read16(reg.getSP());
 		reg.setSP(reg.getSP() + 2);
 		return data;
 	}
 
-	private void push16(int data) {
+	public void push16(int data) {
 		reg.setSP(reg.getSP() - 2);
 		write16(reg.getSP(), data);
 	}

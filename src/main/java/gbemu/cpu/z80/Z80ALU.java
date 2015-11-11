@@ -147,7 +147,18 @@ public class Z80ALU {
 	 * Adjust A for BCD addition.
 	 */
 	public void daa() {
-		// todo Make this function.
+		int a = reg.getA();
+		if(!reg.getNFlag()) {
+			if(reg.getHFlag() || (a & 0xF) > 9) a += 0x06;
+			if(reg.getCFlag() || a > 0x9F) a += 0x60;
+		} else {
+			if(reg.getHFlag()) a = (a - 6) & 0xFF;
+			if(reg.getCFlag()) a -= 0x60;
+		}
+		if((a & 0x100) == 0x100) reg.setCFlag();
+		a &= 0xFF;
+		if(a == 0) reg.setZFlag();
+		reg.setA(a);
 	}
 
 	/**

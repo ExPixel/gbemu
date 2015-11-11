@@ -16,8 +16,11 @@ public class Z80Cpu {
 	public final Z80Executor executor;
 	public final Z80ALU alu;
 	private int lastExecutedAddress = 0;
+	private boolean halted;
 
 	private FileWriter debugWriter;
+	private String lastDebugMessage;
+	private int debugMessageCount = 0;
 
 	public Z80Cpu(GBMemory memory) {
 		this.memory = memory;
@@ -27,11 +30,17 @@ public class Z80Cpu {
 		this.executor = new Z80Executor(this, memory, reg, clock, alu);
 	}
 
+	public void interrupt(int vector) {
+		this.memory.ioPorts.IME = 0;
+		this.executor.call(vector);
+	}
+
 	public int getLastExecutedAddress() {
 		return lastExecutedAddress;
 	}
 
 	public void execute() {
+		if(this.halted) return;
 		lastExecutedAddress = reg.getPC();
 		int instr = this.memory.read8(this.reg.getPC());
 		this.reg.setPC(this.reg.getPC() + 1);
@@ -39,10 +48,15 @@ public class Z80Cpu {
 	}
 
 	public long executeCycles(long targetCycles) {
+		if(this.halted) return 0;
 		this.clock.clearCyclesElapsed();
 		while(this.clock.getCyclesElapsed() < targetCycles)
 			this.execute();
 		return this.clock.getCyclesElapsed();
+	}
+
+	public boolean isHalted() {
+		return halted;
 	}
 
 	/**
@@ -76,6 +90,7 @@ public class Z80Cpu {
 
 	public void halt() {
 		debug("[%04x] halt", lastExecutedAddress);
+		this.halted = true;
 	}
 
 	public void removedInstr() {
@@ -85,12 +100,34 @@ public class Z80Cpu {
 	}
 
 	public void debug(String message) {
-		if(debugWriter != null) {
+		if(this.lastDebugMessage == null) {
+			this.lastDebugMessage = message;
+		} else {
+			if(this.lastDebugMessage.hashCode() == message.hashCode()) {
+				if(this.lastDebugMessage.equals(message)) {
+					this.debugMessageCount++;
+					return;
+				}
+			}
+			this.debugWriteOut();
+			this.lastDebugMessage = message;
+		}
+	}
+
+	public void debugWriteOut() {
+		if(lastDebugMessage != null && debugWriter != null) {
 			try {
-				debugWriter.write(message);
+				if(this.debugMessageCount == 0) {
+					debugWriter.write(this.lastDebugMessage);
+				} else {
+					debugWriter.write(this.lastDebugMessage + " | x" + this.debugMessageCount);
+				}
+				this.lastDebugMessage = null;
 				debugWriter.write('\n');
 			} catch (IOException e) {
 				e.printStackTrace();
+			} finally {
+				this.debugMessageCount = 0;
 			}
 		}
 	}
@@ -111,6 +148,7 @@ public class Z80Cpu {
 			Runtime.getRuntime().addShutdownHook(
 					new Thread(() -> {
 						try {
+							debugWriteOut();
 							debugWriter.close();
 						} catch (IOException e) {
 							e.printStackTrace();

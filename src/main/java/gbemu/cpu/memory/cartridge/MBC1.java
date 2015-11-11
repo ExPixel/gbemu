@@ -80,9 +80,9 @@ public class MBC1 extends NoMBC {
 				romBank_4000_7FFF == 0x20 ||
 				romBank_4000_7FFF == 0x40 ||
 				romBank_4000_7FFF == 0x60) {
-			System.out.println("Bank fixed from: " + romBank_4000_7FFF);
+//			System.out.println("Bank fixed from: " + romBank_4000_7FFF);
 			romBank_4000_7FFF++;
 		}
-		System.out.println("Bank switched to: " + romBank_4000_7FFF);
+//		System.out.println("Bank switched to: " + romBank_4000_7FFF);
 	}
 }

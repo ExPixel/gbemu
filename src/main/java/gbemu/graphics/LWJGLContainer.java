@@ -16,6 +16,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class LWJGLContainer implements Disposable {
 	private GLFWErrorCallback errorCallback;
 	private GLFWKeyCallback keyCallback;
+	private LWJGLKeyListener keyListener;
 	private long window;
 
 	public static final int WINDOW_WIDTH = 160;
@@ -44,6 +45,9 @@ public class LWJGLContainer implements Disposable {
 			public void invoke(long window, int key, int scancode, int action, int mods) {
 				if ( key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE )
 					LWJGLContainer.this.close();
+				else if(keyListener != null) {
+					keyListener.onKeyEvent(key, scancode, action, mods);
+				}
 			}
 		});
 
@@ -102,6 +106,8 @@ public class LWJGLContainer implements Disposable {
 
 			glfwSwapBuffers(window); // swap the color buffers
 		}
+		this.dispose();
+		System.exit(0);
 	}
 
 	public void close() {
@@ -112,10 +118,15 @@ public class LWJGLContainer implements Disposable {
 		return window;
 	}
 
+	public void setKeyListener(LWJGLKeyListener keyListener) {
+		this.keyListener = keyListener;
+	}
+
 	@Override
 	public void dispose() {
+		glfwTerminate();
 		this.keyCallback.release();
 		this.errorCallback.release();
-		glfwTerminate();
+		System.out.println("Sucessfully released GLFW resources.");
 	}
 }
