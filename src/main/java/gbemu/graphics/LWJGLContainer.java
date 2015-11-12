@@ -54,8 +54,8 @@ public class LWJGLContainer implements Disposable {
 		GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 		glfwSetWindowPos(
 				window,
-				(vidmode.getWidth() - WINDOW_WIDTH) / 2,
-				(vidmode.getHeight() - WINDOW_HEIGHT) / 2
+				(vidmode.width() - WINDOW_WIDTH) / 2,
+				(vidmode.height() - WINDOW_HEIGHT) / 2
 		);
 
 

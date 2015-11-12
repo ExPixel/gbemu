@@ -71,14 +71,14 @@ public class FontRenderer implements Disposable {
 				ybuffer.put(0, ybuffer.get(0) + height);
 			} else if(c >= 32 && c < 128) {
 				STBTruetype.stbtt_GetBakedQuad(cdata, bitmapWidth, bitmapHeight, c - 32, xbuffer, ybuffer, quad, 1);
-				float tx = quad.getS0() * bitmapWidth;
-				float ty = quad.getT0() * bitmapHeight;
-				float tw = quad.getS1() * bitmapWidth - tx;
-				float th = quad.getT1() * bitmapHeight - ty;
-				float pw = quad.getX1() - quad.getX0();
-				float ph = quad.getY1() - quad.getY0();
+				float tx = quad.s0() * bitmapWidth;
+				float ty = quad.t0() * bitmapHeight;
+				float tw = quad.s1() * bitmapWidth - tx;
+				float th = quad.t1() * bitmapHeight - ty;
+				float pw = quad.x1() - quad.x0();
+				float ph = quad.y1() - quad.y0();
 //				System.out.printf("%f, %f : %f, %f\n", quad.getX0(), quad.getY0(), quad.getX1(), quad.getY1());
-				renderer.drawTexture(this.texture, this.shaderProgram, tx, ty, tw, th, quad.getX0(), quad.getY0(), pw, ph, 0.0f, color);
+				renderer.drawTexture(this.texture, this.shaderProgram, tx, ty, tw, th, quad.x0(), quad.y0(), pw, ph, 0.0f, color);
 			}
 		}
 		// quad.free();

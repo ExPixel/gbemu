@@ -52,7 +52,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	ByteBuffer screenData;
 	Texture screenTexture;
 	private int currentLine;
-	private Vector3f textColor = new Vector3f(255, 0, 255).div(255);
+	private Vector3f textColor = new Vector3f(255, 255, 255).div(255);
 
 	public GameBoyLCD(long window, Z80Cpu cpu, GBMemory memory) {
 		this.window = window;
@@ -206,8 +206,8 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	}
 
 	private void line() {
-//		 drawTiles();
-		 drawBGLine();
+		 drawTiles();
+//		 drawBGLine();
 		this.renderedLines++;
 	}
 
@@ -243,9 +243,10 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	}
 
 	public void drawBGLine() {
-		int bgTileDataSelect = (memory.ioPorts.LCDC & 0x10) == 0 ? 0x8800 : 0x8000;
+		// if this is true then tiles are numbered from -128 to 127
+		boolean tileData8800 = (memory.ioPorts.LCDC & 0x10) == 0;
+		int bgTileDataSelect = tileData8800 ? 0x8800 : 0x8000;
 		int bgTileMapSelect = (memory.ioPorts.LCDC & 0b1000) == 0 ? 0x9800 : 0x9C00;
-
 	}
 
 	public void drawWindow() {
