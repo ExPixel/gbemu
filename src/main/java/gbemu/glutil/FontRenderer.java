@@ -43,7 +43,7 @@ public class FontRenderer implements Disposable {
 				Utils.readResourceIntoString("/gbemu/res/text_shader.frag"));
 		this.shaderProgram = new ShaderProgram(vertexShader, fragmentShader);
 		cdata = STBTTBakedChar.mallocBuffer(96);
-		ByteBuffer tempBitmap = BufferUtils.createByteBuffer(512 * 512);
+		ByteBuffer tempBitmap = MemoryUtil.memAlloc(512 * 512);
 		STBTruetype.stbtt_BakeFontBitmap(
 				fontDataBuffer, 0, this.height, tempBitmap,
 				bitmapWidth, bitmapHeight,
