@@ -106,8 +106,6 @@ public class LWJGLContainer implements Disposable {
 
 			glfwSwapBuffers(window); // swap the color buffers
 		}
-		this.dispose();
-		System.exit(0);
 	}
 
 	public void close() {

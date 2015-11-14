@@ -22,7 +22,8 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 	private Z80Cpu cpu;
 	private GameBoyLCD lcd;
 	private LWJGLContainer lwjglContainer;
-	private boolean disposed = false;
+	private boolean lwjglDisposed = false;
+	private boolean lcdDisposed = false;
 
 	public GameBoy() {
 		this.memory = new GBMemory();
@@ -90,7 +91,6 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 		this.lwjglContainer.setKeyListener(this);
 		this.lwjglContainer.loop(lcd::render);
 		this.dispose();
-		this.lwjglContainer.dispose();
 	}
 
 	@Override
@@ -126,11 +126,17 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 	@Override
 	public void dispose() {
 		try {
-			if (!this.disposed && this.lwjglContainer != null) {
-				this.lwjglContainer.dispose();
-				this.disposed = true;
+			if(!this.lcdDisposed && this.lcd != null) {
+				this.lcd.dispose();
+				this.lcdDisposed = true;
+				System.out.println("Disposed of LCD.");
 			}
-			System.out.println("Disposed GameBoy.");
+
+			if (!this.lwjglDisposed && this.lwjglContainer != null) {
+				this.lwjglContainer.dispose();
+				this.lwjglDisposed = true;
+				System.out.println("Disposed of LWJGL Container.");
+			}
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
