@@ -120,6 +120,7 @@ public class Z80ALU {
 	 */
 	public void rlca() {
 		reg.setA(this.rlc(reg.getA()));
+		clearZNH();
 	}
 
 	/**
@@ -127,6 +128,7 @@ public class Z80ALU {
 	 */
 	public void rla() {
 		reg.setA(this.rl(reg.getA()));
+		clearZNH();
 	}
 
 	/**
@@ -134,6 +136,7 @@ public class Z80ALU {
 	 */
 	public void rra() {
 		reg.setA(this.rr(reg.getA()));
+		clearZNH();
 	}
 
 	/**
@@ -141,6 +144,13 @@ public class Z80ALU {
 	 */
 	public void rrca() {
 		reg.setA(this.rrc(reg.getA()));
+		clearZNH();
+	}
+
+	private void clearZNH() {
+		reg.clearZFlag();
+		reg.clearNFlag();
+		reg.clearHFlag();
 	}
 
 	/**
@@ -148,16 +158,31 @@ public class Z80ALU {
 	 */
 	public void daa() {
 		int a = reg.getA();
-		if(!reg.getNFlag()) {
-			if(reg.getHFlag() || (a & 0xF) > 9) a += 0x06;
-			if(reg.getCFlag() || a > 0x9F) a += 0x60;
+		int d1 = a >> 4;
+		int d2 = a & 0x0f;
+		if(reg.getNFlag()) {
+			if(reg.getHFlag()) d2 -= 6;
+			if(reg.getCFlag()) d1 -= 6;
+			if(d2 > 9) d2 -= 6;
+			if(d1 > 9) {
+				d1 -= 6;
+				reg.setCFlag();
+			}
 		} else {
-			if(reg.getHFlag()) a = (a - 6) & 0xFF;
-			if(reg.getCFlag()) a -= 0x60;
+			if(reg.getHFlag()) d2 += 6;
+			if(reg.getCFlag()) d1 += 6;
+			if(d2 > 9) {
+				d2 -= 10;
+				d1++;
+			}
+			if(d1 > 9) {
+				d1 -= 10;
+				reg.setCFlag();
+			}
 		}
-		if((a & 0x100) == 0x100) reg.setCFlag();
-		a &= 0xFF;
-		if(a == 0) reg.setZFlag();
+		a = ((d1 << 4) & 0xF0) | (d2 & 0x0F);
+		reg.putZFlag(a == 0);
+		reg.clearHFlag();
 		reg.setA(a);
 	}
 
@@ -217,7 +242,7 @@ public class Z80ALU {
 	public int sra(int i) {
 		reg.putCFlag((i & 1) == 1);
 		int temp = i & 0x80;
-		i = i >> 1 | temp;
+		i = (i >> 1) | temp;
 		checkZ8(i);
 		return i;
 	}

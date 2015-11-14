@@ -3,6 +3,7 @@ package gbemu;
 import gbemu.cpu.memory.GBMemory;
 import gbemu.cpu.memory.cartridge.GBCartridge;
 import gbemu.cpu.z80.Z80Cpu;
+import gbemu.glutil.Disposable;
 import gbemu.graphics.GameBoyLCD;
 import gbemu.graphics.LWJGLContainer;
 import gbemu.graphics.LWJGLKeyListener;
@@ -15,12 +16,13 @@ import java.io.IOException;
 /**
  * @author Adolph C.
  */
-public class GameBoy implements LWJGLKeyListener {
+public class GameBoy implements LWJGLKeyListener, Disposable {
 	private GBCartridge cartridge;
 	private GBMemory memory;
 	private Z80Cpu cpu;
 	private GameBoyLCD lcd;
 	private LWJGLContainer lwjglContainer;
+	private boolean disposed = false;
 
 	public GameBoy() {
 		this.memory = new GBMemory();
@@ -84,9 +86,10 @@ public class GameBoy implements LWJGLKeyListener {
 
 	public void run() {
 		lcd.init();
+		Runtime.getRuntime().addShutdownHook(new Thread(this::dispose));
 		this.lwjglContainer.setKeyListener(this);
 		this.lwjglContainer.loop(lcd::render);
-		lcd.dispose();
+		this.dispose();
 		this.lwjglContainer.dispose();
 	}
 
@@ -118,5 +121,18 @@ public class GameBoy implements LWJGLKeyListener {
 
 	public Z80Cpu getCpu() {
 		return cpu;
+	}
+
+	@Override
+	public void dispose() {
+		try {
+			if (!this.disposed && this.lwjglContainer != null) {
+				this.lwjglContainer.dispose();
+				this.disposed = true;
+			}
+			System.out.println("Disposed GameBoy.");
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
 	}
 }

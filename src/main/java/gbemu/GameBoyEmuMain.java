@@ -13,7 +13,6 @@ import java.nio.ByteBuffer;
  * @author Adolph C.
  */
 public class GameBoyEmuMain {
-
 	public static void main(String[] args) throws IOException {
 		if(args.length < 1) {
 			System.err.println("Must provide a ROM file as an argument.");

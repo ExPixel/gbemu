@@ -48,7 +48,6 @@ public class FontRenderer implements Disposable {
 				fontDataBuffer, 0, this.height, tempBitmap,
 				bitmapWidth, bitmapHeight,
 				32, 96, cdata);
-		MemoryUtil.memFree(fontDataBuffer); // No longer need the font data buffer.
 		texture = new Texture();
 		texture.setInternalFormat(GL30.GL_R8);
 		texture.setImageFormat(GL11.GL_RED);

@@ -193,11 +193,13 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	private void poke(int x, int y, int color) {
 		try {
 			if (x > SCREEN_W || y > SCREEN_H) return;
+			if (x < 0 || y < 0) return;
 			int offset = (x * 3) + ((y * 3) * SCREEN_W);
 			this.screenData.put(offset, (byte) (color & 0xFF));
 			this.screenData.put(offset + 1, (byte) ((color >> 8) & 0xFF));
 			this.screenData.put(offset + 2, (byte) ((color >> 8) & 0xFF));
 		} catch(Exception e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -206,17 +208,18 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	}
 
 	private void line() {
-		 drawTiles();
-//		 drawBGLine();
+//		 drawTiles();
+		 drawBGLine();
 		this.renderedLines++;
 	}
 
 	private static int[] colors = {0xBBBBBB, 0x999999, 0x777777, 0x555555};
 
 	private void drawTileLine(int least8, int most8, int dx, int dy) {
+		dx += 7;
 		for(int i = 7; i >= 0; i--) {
 			int c = (least8 & 1) | ((most8 & 1) << 1);
-			pokeP(dx++, dy, c);
+			pokeP(dx--, dy, c);
 			least8 >>= 1;
 			most8 >>= 1;
 		}
@@ -243,10 +246,28 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	}
 
 	public void drawBGLine() {
+		int SCX = memory.ioPorts.SCX;
+		int SCY = memory.ioPorts.SCY;
+
 		// if this is true then tiles are numbered from -128 to 127
 		boolean tileData8800 = (memory.ioPorts.LCDC & 0x10) == 0;
 		int bgTileDataSelect = tileData8800 ? 0x8800 : 0x8000;
-		int bgTileMapSelect = (memory.ioPorts.LCDC & 0b1000) == 0 ? 0x9800 : 0x9C00;
+		int bgTileMapSelect = (memory.ioPorts.LCDC & 0x8) == 0 ? 0x9800 : 0x9C00;
+
+		int tileLineOffset = currentLine & 7;
+
+		int mapTileAddress = bgTileMapSelect + ((currentLine + SCY) / 8 * 32);
+		mapTileAddress += (SCX / 8);
+
+		int dy = currentLine - (SCY & 7);
+
+		for(int x = -(SCX & 7); x < SCREEN_W; x += 8) {
+			int tileNumber = memory.read8(mapTileAddress);
+			if(tileData8800) tileNumber = ((tileNumber << 24) >> 24) + 255;
+			int tileAddr = bgTileDataSelect + tileNumber * 16 + (tileLineOffset * 2);
+			drawTileLine(memory.read8(tileAddr), memory.read8(tileAddr + 1), x, dy);
+			mapTileAddress++;
+		}
 	}
 
 	public void drawWindow() {

@@ -49,6 +49,7 @@ public class GBMemory {
 	}
 
 	public int read8(int address) {
+		address &= 0xffff;
 		if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) return this.ioPorts.read8(address);
 		if(address >= 0xE000 && address <= 0xFE00) {
 			/*
@@ -66,6 +67,7 @@ public class GBMemory {
 	}
 
 	public void write8(int address, int value) {
+		address &= 0xffff;
 		if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
 			this.ioPorts.write8(address, value & 0xff);
 		} else if(address >= 0xE000 && address <= 0xFE00) {
