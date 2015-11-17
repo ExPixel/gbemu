@@ -1213,7 +1213,7 @@ public class Z80Executor {
 				case 0x4: alu.bit(cbRegGet(register), 0); break;
 				case 0x5: alu.bit(cbRegGet(register), 2); break;
 				case 0x6: alu.bit(cbRegGet(register), 4); break;
-				case 0x7: alu.bit(cbRegGet(register), 5); break;
+				case 0x7: alu.bit(cbRegGet(register), 6); break;
 				case 0x8: cbRegSet(register, alu.res(cbRegGet(register), 0)); break;
 				case 0x9: cbRegSet(register, alu.res(cbRegGet(register), 2)); break;
 				case 0xA: cbRegSet(register, alu.res(cbRegGet(register), 4)); break;
