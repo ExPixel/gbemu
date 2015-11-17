@@ -39,8 +39,7 @@ public class Z80Executor {
 	boolean breakMode = false;
 
 	private boolean execBreakpoint() {
-//		 return cpu.getLastExecutedAddress() == 0xc06c && reg.getBC() == 0x49a3;
-		return cpu.getLastExecutedAddress() == 0xc06c;
+		return false;
 	}
 
 	private void onBreakpointExec() {
