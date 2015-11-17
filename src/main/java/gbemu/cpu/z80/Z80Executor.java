@@ -467,7 +467,7 @@ public class Z80Executor {
 				clock.inc(4);
 				break;
 			case 0x59: // opcode:LD E,C | flags:- - - - | length: 1
-				reg.setD(reg.getE());
+				reg.setE(reg.getC());
 				clock.inc(4);
 				break;
 			case 0x5A: // opcode:LD E,D | flags:- - - - | length: 1
