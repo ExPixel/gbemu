@@ -6,7 +6,7 @@ TODO Pass All Blargg Tests:
 - [ ] 02-interrupts
 - [x] 03-op sp,hl.s
 - [x] 04-op r,imm.s
-- [ ] 05-op rp
+- [x] 05-op rp
 - [ ] 06-ld r,r
 - [ ] 07-jr,jp,call,ret,rst
 - [ ] 08-misc instrs

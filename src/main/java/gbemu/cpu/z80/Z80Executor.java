@@ -166,7 +166,7 @@ public class Z80Executor {
 				clock.inc(12);
 				break;
 			case 0x19: // opcode:ADD HL,DE | flags:- 0 H C | length: 1
-				reg.setHL(reg.getHL() + reg.getDE());
+				reg.setHL(alu.add16(reg.getHL(), reg.getDE()));
 				clock.inc(8);
 				break;
 			case 0x1A: // opcode:LD A,(DE) | flags:- - - - | length: 1
