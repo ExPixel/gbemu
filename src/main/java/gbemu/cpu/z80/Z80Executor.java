@@ -1119,8 +1119,8 @@ public class Z80Executor {
 				clock.inc(12);
 				break;
 			case 0xF2: // opcode:LD A,(C) | flags:- - - - | length: 2
-				// clock.inc(8);
-				cpu.removedInstr();
+				// todo http://imrannazar.com/Gameboy-Z80-Opcode-Map says this should be removed, but Blargg says no
+				reg.setA(memory.read8(reg.getC() + IO_LOC));
 				break;
 			case 0xF3: // opcode:DI | flags:- - - - | length: 1
 				memory.ioPorts.IME = 0;
