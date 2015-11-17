@@ -106,8 +106,8 @@ public class Z80ALU {
 	public int add16(int a, int b) {
 		int result = a + b;
 		reg.clearNFlag();
-		reg.putHFlag((result & 0x7FF) < (a & 0x7FF));
-		reg.putCFlag(result > 0x7FF);
+		reg.putHFlag(((a ^ b ^ (result & 0xffff)) & 0x1000) != 0);
+		reg.putCFlag((result & 0x1000) != 0);
 		return result;
 	}
 

@@ -32,7 +32,7 @@ public class GameBoyEmuMain {
 
 		GBCartridge cartridge = loadROM(romFile);
 		cartridge.getHeader().printOut();
-		GeneralDebug.init("debug/general.log");
+//		GeneralDebug.init("debug/general.log");
 
 		GameBoy gameBoy = new GameBoy();
 		gameBoy.setCartridge(cartridge);

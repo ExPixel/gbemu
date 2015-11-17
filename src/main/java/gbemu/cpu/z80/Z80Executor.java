@@ -331,7 +331,11 @@ public class Z80Executor {
 				}
 				break;
 			case 0x39: // opcode:ADD HL,SP | flags:- 0 H C | length: 1
-				reg.setHL(alu.add16(reg.getHL(), reg.getSP()));
+				w0 = reg.getHL() + reg.getSP(); // result
+				reg.clearNFlag();
+				reg.putHFlag(((w0 & 0x7FF) < (reg.getHL() & 0x7FF)));
+				reg.putCFlag(w0 > 0xffff);
+				reg.setHL(w0);
 				clock.inc(8);
 				break;
 			case 0x3A: // opcode:LD A,(HL-) | flags:- - - - | length: 1
@@ -1078,12 +1082,14 @@ public class Z80Executor {
 				break;
 			case 0xE8: // opcode:ADD SP,r8 | flags:0 0 H C | length: 2
 				// fixme make sure the following code is correct.
-				w0 = reg.getSP() + next8();
-				reg.clearZFlag();
-				reg.clearNFlag();
-				reg.putCFlag( (w0 & 0xFF) < (reg.getSP() & 0xFF) );
-				reg.putHFlag( (w0 & 0xF) < (reg.getSP() & 0xF) );
-				reg.setSP(w0);
+				w0 = ext8(next8()); // rhs operand
+				w1 = reg.getSP() + w0; // result
+				reg.clearFlags();
+				if(((reg.getSP() ^ w0 ^ (w1 & 0xFFFF)) & 0x100) == 0x100)
+					reg.setCFlag();
+				if(((reg.getSP() ^ w0 ^ (w1 & 0xFFFF)) & 0x10) == 0x10)
+					reg.setHFlag();
+				reg.setSP(w1);
 				clock.inc(16);
 				break;
 			case 0xE9: // opcode:JP (HL) | flags:- - - - | length: 1
@@ -1134,13 +1140,13 @@ public class Z80Executor {
 				break;
 			case 0xF8: // opcode:LD HL,SP+/-r8 | flags:0 0 H C | length: 2
 				// fixme make sure the following code is correct.
-				w0 = ext8(next8());
-				w1 = reg.getSP() + w0;
-				reg.clearZFlag();
-				reg.clearNFlag();
-				reg.putHFlag(((reg.getSP() ^ w0 ^ w1) & 0x1000) != 0);
-				if (w0 >= 0) reg.putCFlag(reg.getSP() > w1);
-				else reg.putCFlag(reg.getSP() < w1);
+				w0 = ext8(next8()); // rhs operand
+				w1 = reg.getSP() + w0; // result
+				reg.clearFlags();
+				if(((reg.getSP() ^ w0 ^ (w1 & 0xffff)) & 0x100) == 0x100)
+					reg.setCFlag();
+				if(((reg.getSP() ^ w0 ^ (w1 & 0xffff)) & 0x10) == 0x10)
+					reg.setHFlag();
 				reg.setHL(w1);
 				clock.inc(12);
 				break;

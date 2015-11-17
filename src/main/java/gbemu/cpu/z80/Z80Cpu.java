@@ -53,9 +53,10 @@ public class Z80Cpu {
 		this.clock.clearCyclesElapsed();
 		while(this.clock.getCyclesElapsed() < targetCycles && !this.halted) {
 			this.execute();
-			if(lastExecutedAddress >= 0xC338 && lastExecutedAddress <= 0xC359) {
-				GeneralDebug.printfn("[%04x] %04x %04x %04x %04x %04x", this.getLastExecutedAddress(), reg.getAF(), reg.getBC(), reg.getDE(), reg.getHL(), reg.getSP());
-			}
+			// todo remove test code
+//			if(lastExecutedAddress >= 0xC338 && lastExecutedAddress <= 0xC359) {
+//				GeneralDebug.printfn("[%04x] %04x %04x %04x %04x %04x", this.getLastExecutedAddress(), reg.getAF(), reg.getBC(), reg.getDE(), reg.getHL(), reg.getSP());
+//			}
 		}
 		return this.clock.getCyclesElapsed();
 	}
