@@ -2,6 +2,7 @@ package gbemu;
 
 import gbemu.cpu.memory.GBMemory;
 import gbemu.cpu.memory.cartridge.GBCartridge;
+import gbemu.util.GeneralDebug;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,6 +15,7 @@ import java.nio.ByteBuffer;
  */
 public class GameBoyEmuMain {
 	public static void main(String[] args) throws IOException {
+		// ~ When in doubt add option: -Dorg.lwjgl.util.DebugAllocator=true
 		if(args.length < 1) {
 			System.err.println("Must provide a ROM file as an argument.");
 			System.exit(0);
@@ -30,9 +32,11 @@ public class GameBoyEmuMain {
 
 		GBCartridge cartridge = loadROM(romFile);
 		cartridge.getHeader().printOut();
+		GeneralDebug.init("debug/general.log");
 
 		GameBoy gameBoy = new GameBoy();
 		gameBoy.setCartridge(cartridge);
+		// gameBoy.getCpu().setDebugMode("debug/debug.txt");
 		gameBoy.bootUp();
 
 		gameBoy.getMemory().setListener(new GBMemory.GBMemoryListener() {
@@ -59,10 +63,9 @@ public class GameBoyEmuMain {
 		try(FileInputStream input = new FileInputStream(file)) {
 			int len = (int) file.length();
 			ByteBuffer buffer = ByteBuffer.allocateDirect(len);
-			final int MAX = 0x7FFF;
 			int idx = 0;
 			int read;
-			while (idx < MAX && (read = input.read()) != -1) {
+			while ((read = input.read()) != -1) {
 				buffer.put(idx++, (byte) (read & 0xff));
 			}
 			return new GBCartridge(buffer);

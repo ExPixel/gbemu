@@ -64,7 +64,7 @@ public class Z80Registers {
 	public void setA(int value) { AF = setHigh(AF, value); }
 
 	public int getF() { return getLow(AF); }
-	public void setF(int value) { AF = setLow(AF, value); AF &= ~0xf; }
+	public void setF(int value) { AF = setLow(AF, value); AF &= ~0xf; } // last 4 bits must be clear
 
 	public int getBC() { return BC & 0xffff; }
 	public void setBC(int value) { BC = value & 0xffff; }
@@ -102,42 +102,50 @@ public class Z80Registers {
 	}
 
 	/** Sets Zero Flag */
-	public void setZFlag() { AF |= 0b1000000; }
+	public void setZFlag() { AF |= 0b10000000; }
 	/** Clears Zero Flag */
-	public void clearZFlag() { AF &= ~0b1000000; }
-	public boolean getZFlag() { return (AF & 0b1000000) != 0; }
+	public void clearZFlag() { AF &= ~0b10000000; }
+	public boolean getZFlag() { return (AF & 0b10000000) != 0; }
 	public void putZFlag(boolean v) {
 		if(v) this.setZFlag();
 		else this.clearZFlag();
 	}
 
 	/** Sets Add/Sub-Flag (BCD) */
-	public void setNFlag() { AF |= 0b0100000; }
+	public void setNFlag() { AF |= 0b01000000; }
 	/** Clears Add/Sub-Flag (BCD) */
-	public void clearNFlag() { AF &= ~0b0100000; }
-	public boolean getNFlag() { return (AF & 0b0100000) != 0; }
+	public void clearNFlag() { AF &= ~0b01000000; }
+	public boolean getNFlag() { return (AF & 0b01000000) != 0; }
 	public void putNFlag(boolean v) {
 		if(v) this.setNFlag();
 		else this.clearNFlag();
 	}
 
 	/** Sets Half Carry Flag (BCD) */
-	public void setHFlag() { AF |= 0b0010000; }
+	public void setHFlag() { AF |= 0b00100000; }
 	/** Clears Half Carry Flag (BCD) */
-	public void clearHFlag() { AF &= ~0b0010000; }
-	public boolean getHFlag() { return (AF & 0b0010000) != 0; }
+	public void clearHFlag() { AF &= ~0b00100000; }
+	public boolean getHFlag() { return (AF & 0b00100000) != 0; }
 	public void putHFlag(boolean v) {
 		if(v) this.setHFlag();
 		else this.clearHFlag();
 	}
 
 	/** Sets Carry Flag */
-	public void setCFlag() { AF |= 0b0001000; }
+	public void setCFlag() { AF |= 0b00010000; }
 	/** Clears Carry Flag */
-	public void clearCFlag() { AF &= ~0b0001000; }
-	public boolean getCFlag() { return (AF & 0b0001000) != 0; }
+	public void clearCFlag() { AF &= ~0b00010000; }
+	public boolean getCFlag() { return (AF & 0b00010000) != 0; }
 	public void putCFlag(boolean v) {
 		if(v) this.setCFlag();
 		else this.clearCFlag();
+	}
+
+	public void clearFlags() {
+		AF &= ~0b11110000;
+	}
+
+	public void incPC() {
+		this.PC++;
 	}
 }

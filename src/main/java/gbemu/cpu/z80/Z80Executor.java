@@ -34,17 +34,35 @@ public class Z80Executor {
 	@Deprecated
 	int address = 0;
 
-	public void execute(int instr) {
-		// work integers 1 & 2
-		int w0; // Have to define this outside (switch is one big scope)
+	int count = 0;
+	int countNeeded = 2;
+	boolean breakMode = false;
 
-//		if(cpu.getLastExecutedAddress() == 0x0661) {
-//			System.out.print("");
-//		}
-//
-//		if(cpu.getLastExecutedAddress() == 0x06f1) {
-//			System.out.print("");
-//		}
+	private boolean execBreakpoint() {
+//		 return cpu.getLastExecutedAddress() == 0xc06c && reg.getBC() == 0x49a3;
+		return cpu.getLastExecutedAddress() == 0xc06c;
+	}
+
+	private void onBreakpointExec() {
+		reg.setAF(reg.getAF());
+	}
+
+	public void execute(int instr) {
+		// work integers 0 & 1
+		int w0; // Have to define this outside (switch is one big scope)
+		int w1;
+
+		if(breakMode) {
+			onBreakpointExec();
+		} else {
+			if(execBreakpoint()) {
+				count++;
+				if (count >= countNeeded) {
+					breakMode = true;
+					onBreakpointExec();
+				}
+			}
+		}
 
 		switch (instr & 0xff) {
 			case 0x00: // opcode:NOP | flags:- - - - | length: 1
@@ -1115,14 +1133,16 @@ public class Z80Executor {
 				call(0x30);
 				clock.inc(16);
 				break;
-			case 0xF8: // opcode:LD HL,SP+r8 | flags:0 0 H C | length: 2
+			case 0xF8: // opcode:LD HL,SP+/-r8 | flags:0 0 H C | length: 2
 				// fixme make sure the following code is correct.
-				w0 = reg.getSP() + next8();
+				w0 = ext8(next8());
+				w1 = reg.getSP() + w0;
 				reg.clearZFlag();
 				reg.clearNFlag();
-				reg.putCFlag( (w0 & 0xFF) < (reg.getSP() & 0xFF) );
-				reg.putHFlag( (w0 & 0xF) < (reg.getSP() & 0xF) );
-				reg.setHL(w0);
+				reg.putHFlag(((reg.getSP() ^ w0 ^ w1) & 0x1000) != 0);
+				if (w0 >= 0) reg.putCFlag(reg.getSP() > w1);
+				else reg.putCFlag(reg.getSP() < w1);
+				reg.setHL(w1);
 				clock.inc(12);
 				break;
 			case 0xF9: // opcode:LD SP,HL | flags:- - - - | length: 1
@@ -1144,10 +1164,11 @@ public class Z80Executor {
 			case 0xFF: // opcode:RST 38H | flags:- - - - | length: 1
 				call(0x38);
 				clock.inc(16);
+				break;
 			default:
 				// This should probably be done differently in order to mix well with
 				// removed instructions. Maybe those should be causing errors though :\
-				System.err.printf("[%04x] undefined instruction 0x%02x\n", reg.getPC()-1, instr);
+				System.err.printf("[%04x] undefined instruction 0x%02x\n", cpu.getLastExecutedAddress(), instr);
 				break;
 		}
 	}
@@ -1267,6 +1288,7 @@ public class Z80Executor {
 	}
 
 	public void call(int addr) {
+		addr &= 0xffff;
 		cpu.onCall(addr);
 		this.push16(reg.getPC());
 		reg.setPC(addr);

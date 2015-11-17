@@ -1,6 +1,7 @@
 package gbemu.cpu.z80;
 
 import gbemu.cpu.memory.GBMemory;
+import gbemu.util.GeneralDebug;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -43,15 +44,19 @@ public class Z80Cpu {
 		if(this.halted) return;
 		lastExecutedAddress = reg.getPC();
 		int instr = this.memory.read8(this.reg.getPC());
-		this.reg.setPC(this.reg.getPC() + 1);
+		this.reg.incPC();
 		this.executor.execute(instr);
 	}
 
 	public long executeCycles(long targetCycles) {
 		if(this.halted) return 0;
 		this.clock.clearCyclesElapsed();
-		while(this.clock.getCyclesElapsed() < targetCycles)
+		while(this.clock.getCyclesElapsed() < targetCycles && !this.halted) {
 			this.execute();
+			if(lastExecutedAddress >= 0xC338 && lastExecutedAddress <= 0xC359) {
+				GeneralDebug.printfn("[%04x] %04x %04x %04x %04x %04x", this.getLastExecutedAddress(), reg.getAF(), reg.getBC(), reg.getDE(), reg.getHL(), reg.getSP());
+			}
+		}
 		return this.clock.getCyclesElapsed();
 	}
 
@@ -100,6 +105,7 @@ public class Z80Cpu {
 	}
 
 	public void debug(String message) {
+		if(debugWriter == null) return;
 		if(this.lastDebugMessage == null) {
 			this.lastDebugMessage = message;
 		} else {
@@ -133,6 +139,7 @@ public class Z80Cpu {
 	}
 
 	public void debug(String message, Object...args) {
+		if(debugWriter == null) return;
 		debug(String.format(message, args));
 	}
 
@@ -142,7 +149,8 @@ public class Z80Cpu {
 
 	public void setDebugMode(File file) {
 		File parent = file.getParentFile();
-		if(parent != null) parent.mkdirs();
+		if(parent != null) //noinspection ResultOfMethodCallIgnored
+			parent.mkdirs();
 		try {
 			debugWriter = new FileWriter(file);
 			Runtime.getRuntime().addShutdownHook(

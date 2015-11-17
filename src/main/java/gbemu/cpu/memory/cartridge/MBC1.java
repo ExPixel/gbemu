@@ -93,8 +93,11 @@ public class MBC1 extends NoMBC {
     }
 
     private int mbc1Read8(int address) {
-        if(address >= 0x4000 && address <= 0x7FFF) address += (romBankNumber & this.romBankNumberMask) * (0x4000);
-        return this.data.get(address);
+        int oldAddress = address;
+        if(address >= 0x4000 && address <= 0x7FFF)
+            address += ((romBankNumber & this.romBankNumberMask) - 1) * (0x4000);
+            // -1 above because romBank1 should actually be at 0x4000
+        return this.data.get(address) & 0xff;
     }
 
     private void mbc1Write8(int address, int value) {

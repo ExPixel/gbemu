@@ -80,9 +80,8 @@ public class GBMemory {
 			 */
 			write8(address - 0xE000 + 0xC000, value);
 			return;
-		} else if(address <= 0x7FFF) {
+		} if((address >= 0xA000 && address <= 0xBFFF) || address <= 0x7FFF) {
 			cartridge.getMbc().write8(address, value);
-			return;
 		}
 		onWrite8(address, value);
 		data.put(address, (byte) (value & 0xff)); // removes sign extension

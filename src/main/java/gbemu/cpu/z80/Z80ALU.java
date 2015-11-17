@@ -201,11 +201,12 @@ public class Z80ALU {
 	 * @return rotated number
 	 */
 	public int rlc(int i) {
-		int temp = (i & 0x80) >> 7;
-		int result = (i << 1) | temp;
+		int temp = ((i & 0x80) >> 7) & 1;
+		reg.clearFlags();
 		reg.putCFlag(temp == 1);
-		checkZ8(result);
-		return result;
+		i = (i << 1) | temp;
+		checkZ8(i);
+		return i;
 	}
 
 	/**
@@ -215,10 +216,11 @@ public class Z80ALU {
 	 */
 	public int rrc(int i) {
 		int temp = i & 1;
+		reg.clearFlags();
 		reg.putCFlag(temp == 1);
-		int result = (i >> 1) | (temp << 7);
-		checkZ8(result);
-		return result;
+		i = (i >> 1) | (temp << 7);
+		checkZ8(i);
+		return i;
 	}
 
 	/**
@@ -227,9 +229,10 @@ public class Z80ALU {
 	 * @return rotated number
 	 */
 	public int rr(int i) {
+		int carry = reg.getCFlag() ? 0x80 : 0;
+		reg.clearFlags();
 		reg.putCFlag((i & 1) == 1);
-		int temp = reg.getCFlag() ? 1 : 0;
-		i = (i >> 1) | (temp << 7);
+		i = (i >> 1) | carry;
 		checkZ8(i);
 		return i;
 	}
@@ -240,6 +243,7 @@ public class Z80ALU {
 	 * @return shifted number.
 	 */
 	public int sra(int i) {
+		reg.clearFlags();
 		reg.putCFlag((i & 1) == 1);
 		int temp = i & 0x80;
 		i = (i >> 1) | temp;
@@ -253,6 +257,7 @@ public class Z80ALU {
 	 * @return shifted number.
 	 */
 	public int srl(int i) {
+		reg.clearFlags();
 		reg.putCFlag((i & 1) == 1);
 		i = i >> 1;
 		checkZ8(i);
