@@ -261,11 +261,11 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 
 		int dy = currentLine - (SCY & 7);
 
-		for(int x = -(SCX & 7); x < SCREEN_W; x += 8) {
+		for(int dx = -(SCX & 7); dx < SCREEN_W; dx += 8) {
 			int tileNumber = memory.read8(mapTileAddress);
 			if(tileData8800) tileNumber = ((tileNumber << 24) >> 24) + 255;
 			int tileAddr = bgTileDataSelect + tileNumber * 16 + (tileLineOffset * 2);
-			drawTileLine(memory.read8(tileAddr), memory.read8(tileAddr + 1), x, dy);
+			drawTileLine(memory.read8(tileAddr), memory.read8(tileAddr + 1), dx, dy);
 			mapTileAddress++;
 		}
 	}
