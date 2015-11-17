@@ -291,8 +291,10 @@ public class Z80ALU {
 	 * @return rotated number
 	 */
 	public int rl(int i) {
+		int carry = reg.getCFlag() ? 1 : 0;
+		reg.clearFlags();
 		reg.putCFlag((i & 0x80) != 0);
-		i = (i << 1) | (reg.getCFlag() ? 1 : 0);
+		i = (i << 1) | carry;
 		checkZ8(i);
 		return i;
 	}
@@ -303,6 +305,7 @@ public class Z80ALU {
 	 * @return shifted number
 	 */
 	public int sla(int i) {
+		reg.clearFlags();
 		reg.putCFlag((i & 0x80) != 0);
 		i = i << 1;
 		checkZ8(i);
@@ -315,6 +318,7 @@ public class Z80ALU {
 	 * @return number with nybbles swapped.
 	 */
 	public int swap(int i) {
+		reg.clearFlags();
 		int result = ((i & 0xF) << 4) | ((i & 0xF0) >> 4);
 		reg.setF(0);
 		checkZ8(i);
