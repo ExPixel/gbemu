@@ -298,15 +298,21 @@ public class Z80Executor {
 				clock.inc(8);
 				break;
 			case 0x34: // opcode:INC (HL) | flags:Z 0 H - | length: 1
-				w0 = read8(reg.getHL());
-				w0 = alu.add8(w0, 1);
-				write8(reg.getHL(), w0);
+				w0 = memory.read8(reg.getHL()); // lhs operand
+				w1 = (w0 + 1) & 0xff; // result
+				alu.checkZ8(w1);
+				reg.clearNFlag();
+				reg.putHFlag((w1 & 0x0F) == 0);
+				memory.write8(reg.getHL(), w1);
 				clock.inc(12);
 				break;
 			case 0x35: // opcode:DEC (HL) | flags:Z 1 H - | length: 1
-				w0 = read8(reg.getHL());
-				w0 = alu.sub8(w0, 1);
-				write8(reg.getHL(), w0);
+				w0 = memory.read8(reg.getHL()); // lhs operand
+				w1 = (w0 - 1) & 0xff; // result
+				alu.checkZ8(w1);
+				reg.setNFlag();
+				reg.putHFlag((w1 & 0x0F) == 0x0F);
+				memory.write8(reg.getHL(), w1);
 				clock.inc(12);
 				break;
 			case 0x36: // opcode:LD (HL),d8 | flags:- - - - | length: 2
@@ -340,7 +346,7 @@ public class Z80Executor {
 				break;
 			case 0x3A: // opcode:LD A,(HL-) | flags:- - - - | length: 1
 				reg.setA(read8(reg.getHL()));
-				reg.setHL(alu.inc16(reg.getHL()));
+				reg.setHL(alu.dec16(reg.getHL()));
 				clock.inc(8);
 				break;
 			case 0x3B: // opcode:DEC SP | flags:- - - - | length: 1
@@ -1185,7 +1191,7 @@ public class Z80Executor {
 		if((instr & 0xF) > 7) {
 			switch(cbinstr) {
 				case 0x0: cbRegSet(register, alu.rrc(cbRegGet(register))); break;
-				case 0x1: cbRegSet(register, alu.rr(cbRegGet(register))); break;
+				case 0x1: cbRegSet(register, alu.rr(cbRegGet(register)));  break;
 				case 0x2: cbRegSet(register, alu.sra(cbRegGet(register))); break;
 				case 0x3: cbRegSet(register, alu.srl(cbRegGet(register))); break;
 				case 0x4: alu.bit(cbRegGet(register), 1); break;
@@ -1206,9 +1212,9 @@ public class Z80Executor {
 			}
 		} else {
 			switch(cbinstr) {
-				case 0x0: cbRegSet(register, alu.rlc(cbRegGet(register))); break;
-				case 0x1: cbRegSet(register, alu.rl(cbRegGet(register))); break;
-				case 0x2: cbRegSet(register, alu.sla(cbRegGet(register))); break;
+				case 0x0: cbRegSet(register, alu.rlc(cbRegGet(register)));  break;
+				case 0x1: cbRegSet(register, alu.rl(cbRegGet(register)));   break;
+				case 0x2: cbRegSet(register, alu.sla(cbRegGet(register)));  break;
 				case 0x3: cbRegSet(register, alu.swap(cbRegGet(register))); break;
 				case 0x4: alu.bit(cbRegGet(register), 0); break;
 				case 0x5: alu.bit(cbRegGet(register), 2); break;
@@ -1247,7 +1253,7 @@ public class Z80Executor {
 			case 0xB: return reg.getE();
 			case 0xC: return reg.getH();
 			case 0xD: return reg.getL();
-			case 0xE: return reg.getHL();
+			case 0xE: return read8(reg.getHL());
 			case 0xF: return reg.getA();
 
 			default:
@@ -1268,7 +1274,6 @@ public class Z80Executor {
 				write8(reg.getHL(), v);
 				break;
 			case 0x7: reg.setA(v); break;
-
 			case 0x8: reg.setB(v); break;
 			case 0x9: reg.setC(v); break;
 			case 0xA: reg.setD(v); break;

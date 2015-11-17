@@ -12,4 +12,4 @@ TODO Pass All Blargg Tests:
 - [x] 08-misc instrs
 - [x] 09-op r,r
 - [x] 10-bit ops
-- [ ] 11-op a,(hl)
+- [x] 11-op a,(hl)

@@ -1,52 +1,52 @@
 
 switch (instr & 0xff) {
-		case 0x0: // opcode:RLC B | flags:Z 0 0 C | length: 2
+		case 0x00: // opcode:RLC B | flags:Z 0 0 C | length: 2
 		reg.setB(alu.rlc(reg.getB()));
 		clock.inc(8);
 		break;
-		case 0x1: // opcode:RLC C | flags:Z 0 0 C | length: 2
+		case 0x01: // opcode:RLC C | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0x2: // opcode:RLC D | flags:Z 0 0 C | length: 2
+		case 0x02: // opcode:RLC D | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0x3: // opcode:RLC E | flags:Z 0 0 C | length: 2
+		case 0x03: // opcode:RLC E | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0x4: // opcode:RLC H | flags:Z 0 0 C | length: 2
+		case 0x04: // opcode:RLC H | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0x5: // opcode:RLC L | flags:Z 0 0 C | length: 2
+		case 0x05: // opcode:RLC L | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0x6: // opcode:RLC (HL) | flags:Z 0 0 C | length: 2
+		case 0x06: // opcode:RLC (HL) | flags:Z 0 0 C | length: 2
 		clock.inc(16);
 		break;
-		case 0x7: // opcode:RLC A | flags:Z 0 0 C | length: 2
+		case 0x07: // opcode:RLC A | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0x8: // opcode:RRC B | flags:Z 0 0 C | length: 2
+		case 0x08: // opcode:RRC B | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0x9: // opcode:RRC C | flags:Z 0 0 C | length: 2
+		case 0x09: // opcode:RRC C | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0xA: // opcode:RRC D | flags:Z 0 0 C | length: 2
+		case 0x0A: // opcode:RRC D | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0xB: // opcode:RRC E | flags:Z 0 0 C | length: 2
+		case 0x0B: // opcode:RRC E | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0xC: // opcode:RRC H | flags:Z 0 0 C | length: 2
+		case 0x0C: // opcode:RRC H | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0xD: // opcode:RRC L | flags:Z 0 0 C | length: 2
+		case 0x0D: // opcode:RRC L | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
-		case 0xE: // opcode:RRC (HL) | flags:Z 0 0 C | length: 2
+		case 0x0E: // opcode:RRC (HL) | flags:Z 0 0 C | length: 2
 		clock.inc(16);
 		break;
-		case 0xF: // opcode:RRC A | flags:Z 0 0 C | length: 2
+		case 0x0F: // opcode:RRC A | flags:Z 0 0 C | length: 2
 		clock.inc(8);
 		break;
 		case 0x10: // opcode:RL B | flags:Z 0 0 C | length: 2

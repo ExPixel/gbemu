@@ -325,7 +325,7 @@ public class Z80ALU {
 		return result;
 	}
 
-	private void checkZ8(int a) {
+	public void checkZ8(int a) {
 		reg.putZFlag((a & 0xff) == 0);
 	}
 
