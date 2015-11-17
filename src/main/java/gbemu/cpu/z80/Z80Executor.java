@@ -974,7 +974,7 @@ public class Z80Executor {
 				clock.inc(16);
 				break;
 			case 0xD0: // opcode:RET NC | flags:- - - - | length: 1
-				if(!reg.getNFlag()) {
+				if(!reg.getCFlag()) {
 					ret();
 					clock.inc(20);
 				} else {
