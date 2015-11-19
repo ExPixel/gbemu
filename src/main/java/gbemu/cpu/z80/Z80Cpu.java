@@ -1,7 +1,6 @@
 package gbemu.cpu.z80;
 
 import gbemu.cpu.memory.GBMemory;
-import gbemu.util.GeneralDebug;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -25,15 +24,62 @@ public class Z80Cpu {
 
 	public Z80Cpu(GBMemory memory) {
 		this.memory = memory;
-		this.clock = new Z80Clock();
+		this.clock = new Z80Clock(this);
 		this.reg = new Z80Registers();
 		this.alu = new Z80ALU(reg);
 		this.executor = new Z80Executor(this, memory, reg, clock, alu);
 	}
 
-	public void interrupt(int vector) {
-		this.memory.ioPorts.IME = 0;
-		this.executor.call(vector);
+	public void handleInterrupts() {
+		int interrupts = memory.ioPorts.IF & (memory.ioPorts.IE & 0xf);
+		if(interrupts == 0) return; // No interrupt has occured so we end here.
+		this.halted = false; // CPU is no longer halted.
+		if(this.memory.ioPorts.IME != 0) {
+			this.memory.ioPorts.IME = 0;
+			int vector;
+			if((interrupts & 0x1) != 0) {
+				// V-Blank Interrupt
+				memory.ioPorts.IF &= ~0x1;
+				vector = 0x40;
+			} else if((interrupts & 0x3) != 0) {
+				// LCD STAT Interrupt
+				memory.ioPorts.IF &= ~0x3;
+				vector = 0x48;
+			} else if((interrupts & 0x7) != 0) {
+				// Timer Interrupt
+				memory.ioPorts.IF &= ~0x7;
+				vector = 0x50;
+			} else if((interrupts & 0xf) != 0) {
+				// Serial Interrupt
+				memory.ioPorts.IF &= ~0xf;
+				vector = 0x58;
+			} else /* if((interrupts & 0x1f) != 0) */ {
+				// Joypad Interrupt
+				memory.ioPorts.IF &= ~0x1f;
+				vector = 0x60;
+			}
+			this.executor.call(vector);
+		}
+	}
+
+	public void fireVBlankInterrupt() {
+		this.memory.ioPorts.IF |= 0x1;
+	}
+
+	public void fireLCDStatInterrupt() {
+		this.memory.ioPorts.IF |= 0x3;
+	}
+
+	public void fireTimerInterrupt() {
+		this.memory.ioPorts.IF |= 0x7;
+	}
+
+	public void fireSerialInterrupt() {
+		this.memory.ioPorts.IF |= 0xF;
+	}
+
+	public void fireJoypadInterrupt() {
+		this.memory.ioPorts.IF |= 0x1f;
 	}
 
 	public int getLastExecutedAddress() {
@@ -46,10 +92,17 @@ public class Z80Cpu {
 		int instr = this.memory.read8(this.reg.getPC());
 		this.reg.incPC();
 		this.executor.execute(instr);
+		this.clock.updateTimerRegisters();
+		this.handleInterrupts();
 	}
 
 	public long executeCycles(long targetCycles) {
-		if(this.halted) return 0;
+		if(this.halted) {
+			this.clock.incIO(targetCycles);
+			this.clock.updateTimerRegisters();
+			this.handleInterrupts();
+			return 0;
+		}
 		this.clock.clearCyclesElapsed();
 		while(this.clock.getCyclesElapsed() < targetCycles && !this.halted) {
 			this.execute();

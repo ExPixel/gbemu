@@ -76,6 +76,9 @@ public class IOPorts {
 	 */
 	public int IME;
 
+	public boolean _TAC_TIMER_RUNNING = false;
+	public int _TAC_SPEED = 0;
+
 	int read8(int address) {
 		switch (address) {
 			case 0xFF00:
@@ -196,7 +199,8 @@ public class IOPorts {
 				SC = data;
 				break;
 			case 0xFF04:
-				DIV = data;
+				// Writing any value to this register resets it to 00h
+				DIV = 0;//data;
 				break;
 			case 0xFF05:
 				TIMA = data;
@@ -206,6 +210,13 @@ public class IOPorts {
 				break;
 			case 0xFF07:
 				TAC = data;
+				_TAC_TIMER_RUNNING = ((TAC >> 2) & 1) == 1;
+				switch (TAC & 0x3) {
+					case 0: _TAC_SPEED = 4096; break;
+					case 1: _TAC_SPEED = 262144; break;
+					case 2: _TAC_SPEED = 65536; break;
+					case 3: _TAC_SPEED = 16384; break;
+				}
 				break;
 			case 0xFF0F:
 				IF = data;

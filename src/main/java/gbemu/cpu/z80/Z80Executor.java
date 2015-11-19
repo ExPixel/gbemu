@@ -35,11 +35,12 @@ public class Z80Executor {
 	int address = 0;
 
 	int count = 0;
-	int countNeeded = 2;
+	int countNeeded = 1;
 	boolean breakMode = false;
 
 	private boolean execBreakpoint() {
-		return false;
+//		return false;
+		return cpu.getLastExecutedAddress() == 0x50;
 	}
 
 	private void onBreakpointExec() {

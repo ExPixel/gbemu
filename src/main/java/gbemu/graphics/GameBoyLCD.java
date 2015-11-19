@@ -112,7 +112,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			this.drawFrame();
 		else this.drawSomeLines(); // draws some lines in the mean time.
 		renderer.drawTexture(screenTexture, 0, 0);
-//		this.renderInfo(delta);
+		this.renderInfo(delta);
 		frameCounter.frame(delta);
 	}
 
@@ -297,6 +297,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	private void handleVBlankValues() {
 		this.memory.ioPorts.LCDC &= ~3;
 		this.memory.ioPorts.LCDC |= 1;
+		this.cpu.fireVBlankInterrupt();
 	}
 
 	/**
