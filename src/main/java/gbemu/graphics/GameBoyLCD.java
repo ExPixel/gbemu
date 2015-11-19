@@ -214,7 +214,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	 */
 	private void poke(int x, int y, int color) {
 		try {
-			if (x > SCREEN_W || y > SCREEN_H) return;
+			if (x >= SCREEN_W || y >= SCREEN_H) return;
 			if (x < 0 || y < 0) return;
 			int offset = (x * 3) + ((y * 3) * SCREEN_W);
 			this.screenData.put(offset, (byte) (color & 0xFF));
