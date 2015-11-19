@@ -52,7 +52,20 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	ByteBuffer screenData;
 	Texture screenTexture;
 	private int currentLine;
-	private Vector3f textColor = new Vector3f(255, 255, 255).div(255);
+
+	/**
+	 * Reference for the monochrome palette
+	 * <pre>
+	 * 0  White
+	 * 1  Light gray
+	 * 2  Dark gray
+	 * 3  Black
+	 * </pre>
+	 */
+	private static final int[] monochromePaletteReference = {0xffffff, 0xBBBBBB, 0x555555, 0x000000};
+	private int[] monochromePalette = {0, 0, 0, 0};
+
+	private Vector3f textColor = new Vector3f(100, 255, 100).div(255);
 
 	public GameBoyLCD(long window, Z80Cpu cpu, GBMemory memory) {
 		this.window = window;
@@ -95,45 +108,55 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 
 	public void render(double delta) {
 		this.incFrameDelta(delta);
-		if(this.isFrameTime()) this.drawFrame();
+		if(this.isFrameTime())
+			this.drawFrame();
 		else this.drawSomeLines(); // draws some lines in the mean time.
 		renderer.drawTexture(screenTexture, 0, 0);
-		this.renderInfo();
+//		this.renderInfo(delta);
 		frameCounter.frame(delta);
 	}
 
-	private String bin8(int a) {
-		String bin = Integer.toBinaryString(a);
+	private CharSequence bin(int len, int a) {
 		StringBuilder b = new StringBuilder();
-		while(b.length() + bin.length() < 8) b.append('0');
-		return b.append(bin).toString();
+		len--; // we don't want that one.
+		while(len >= 0) {
+			b.append((a & (1 << len)) >> len);
+			len--;
+		}
+		return b;
 	}
 
-	private void renderInfo() {
-		StringBuilder info = new StringBuilder();
-		info.append("FPS: ").append(frameCounter.getFPS()).append('\n');
-		info.append("FPS (GB): ").append(gameBoyFrameCounter.getFPS()).append('\n');
-		info.append("Frames: ").append(String.format("%,d", this.renderedFrames)).append('\n');
-		info.append("Lines: ").append(String.format("%,d", this.renderedLines)).append('\n');
-		info.append("Clock Cycles: ").append(String.format("%,d", cpu.clock.getCycles())).append('\n');
-		info.append("Machine Cycles: ").append(String.format("%,d", cpu.clock.getMachineCycles())).append('\n');
-		info.append("Program Counter: ").append(String.format("0x%04d", cpu.reg.getPC())).append('\n');
-		info.append("LCDC: ").append(bin8(memory.ioPorts.LCDC)).append('\n');
 
-		Runtime runtime = Runtime.getRuntime();
-		long free = runtime.freeMemory();
-		long total = runtime.totalMemory();
-		long used = total - free;
+	private double renderInfoDelta = 0;
+	private String renderInfoCachedText = "";
+	private void renderInfo(double delta) {
+		renderInfoDelta += delta;
+		if(renderInfoDelta > 0.1) {
+			renderInfoDelta = 0;
+			StringBuilder info = new StringBuilder();
+			info.append("FPS: ").append(frameCounter.getFPS()).append('\n');
+			info.append("FPS (GB): ").append(gameBoyFrameCounter.getFPS()).append('\n');
+			info.append("Frames: ").append(String.format("%,d", this.renderedFrames)).append('\n');
+			info.append("Lines: ").append(String.format("%,d", this.renderedLines)).append('\n');
+			info.append("Clock Cycles: ").append(String.format("%,d", cpu.clock.getCycles())).append('\n');
+			info.append("Machine Cycles: ").append(String.format("%,d", cpu.clock.getMachineCycles())).append('\n');
+			info.append("Program Counter: ").append(String.format("0x%04d", cpu.reg.getPC())).append('\n');
+			info.append("LCDC: ").append(bin(8, memory.ioPorts.LCDC)).append('\n');
 
-		info.append("Memory Usage: ")
-				.append(Utils.getByteSizeString(used))
-				.append(' ').append('/').append(' ')
-				.append(Utils.getByteSizeString(total));
+			Runtime runtime = Runtime.getRuntime();
+			long free = runtime.freeMemory();
+			long total = runtime.totalMemory();
+			long used = total - free;
 
-		renderer.drawText(8, 24, textColor, info.toString());
+			info.append("Memory Usage: ")
+					.append(Utils.getByteSizeString(used))
+					.append(' ').append('/').append(' ')
+					.append(Utils.getByteSizeString(total));
+			renderInfoCachedText = info.toString();
+		}
+
+		renderer.drawText(8, 24, textColor, renderInfoCachedText);
 	}
-
-	private static int offset = 16;
 
 	public void drawSomeLines() {
 		int allowed = Math.max(this.frameCounter.getFPS() / 143, 1);
@@ -167,7 +190,6 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			processLine(false);
 		}
 	}
-
 	private void runVBlank() {
 		this.handleVBlankValues();
 		for (currentLine = 144; currentLine < 154; currentLine++) {
@@ -203,74 +225,68 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		}
 	}
 
-	private void pokeP(int x, int y, int paletteColor) {
-		poke(x, y, colors[paletteColor]);
-	}
-
 	private void line() {
-//		 drawTiles();
-		 drawBGLine();
+		// todo add color capabilities
+		setupMonochromePalette();
+		drawMonochromeBGLine();
 		this.renderedLines++;
 	}
 
-	private static int[] colors = {0xBBBBBB, 0x999999, 0x777777, 0x555555};
+	private void setupMonochromePalette() {
+		monochromePalette[0] =
+				monochromePaletteReference[memory.ioPorts.BGP & 0x3];
+		monochromePalette[1] =
+				monochromePaletteReference[(memory.ioPorts.BGP >> 2) & 0x3];
+		monochromePalette[2] =
+				monochromePaletteReference[(memory.ioPorts.BGP >> 4) & 0x3];
+		monochromePalette[3] =
+				monochromePaletteReference[(memory.ioPorts.BGP >> 6) & 0x3];
+	}
 
-	private void drawTileLine(int least8, int most8, int dx, int dy) {
+	private void drawMonochromeTileLine(int least8, int most8, int dx, int dy) {
 		dx += 7;
 		for(int i = 7; i >= 0; i--) {
 			int c = (least8 & 1) | ((most8 & 1) << 1);
-			pokeP(dx--, dy, c);
+			int x = dx--;
+			poke(x, dy, monochromePalette[c]);
 			least8 >>= 1;
 			most8 >>= 1;
 		}
 	}
 
-	private int signExtendTile(int tile) {
-		return (tile << 24) >> 24;
-	}
-
-	public void drawFirstTile() {
-		if(currentLine > 7) return;
-		int bgTileDataSelect = (memory.ioPorts.LCDC & 0x10) == 0 ? 0x8800 : 0x8000;
-		bgTileDataSelect += currentLine * 2;
-		drawTileLine(memory.read8(bgTileDataSelect), memory.read8(bgTileDataSelect + 1), 0, currentLine);
-	}
-
-	public void drawTiles() {
-		int bgTileDataSelect = (memory.ioPorts.LCDC & 0x10) == 0 ? 0x8800 : 0x8000;
-		int tile = bgTileDataSelect + ((currentLine / 8) * 16) + (currentLine * 2);
-		for(int x = 0; x < SCREEN_W; x += 8) {
-			drawTileLine(memory.read8(tile), memory.read8(tile + 1), x, currentLine);
-			tile += 16;
-		}
-	}
-
-	public void drawBGLine() {
-		int SCX = memory.ioPorts.SCX;
-		int SCY = memory.ioPorts.SCY;
-
+	public void drawMonochromeBGLine() {
 		// if this is true then tiles are numbered from -128 to 127
+		int scx = memory.ioPorts.SCX;
+		int scy = memory.ioPorts.SCY;
 		boolean tileData8800 = (memory.ioPorts.LCDC & 0x10) == 0;
 		int bgTileDataSelect = tileData8800 ? 0x8800 : 0x8000;
 		int bgTileMapSelect = (memory.ioPorts.LCDC & 0x8) == 0 ? 0x9800 : 0x9C00;
+		int bgTileMapSelectEnd = (memory.ioPorts.LCDC & 0x8) == 0 ? 0x9BFF : 0x9FFF;
 
-		int tileLineOffset = currentLine & 7;
+		int line = this.currentLine + scy;
+		int mapTileAddress = bgTileMapSelect + ((line / 8) * 32);
+		mapTileAddress += scx / 8;
+		int tileYOffset = line % 8;
 
-		int mapTileAddress = bgTileMapSelect + ((currentLine + SCY) / 8 * 32);
-		mapTileAddress += (SCX / 8);
+		int dx = -(scx % 8);
+//		int dy = line-(scy & 7);
 
-		int dy = currentLine - (SCY & 7);
-
-		for(int dx = -(SCX & 7); dx < SCREEN_W; dx += 8) {
-			int tileNumber = memory.read8(mapTileAddress);
-			if(tileData8800) tileNumber = ((tileNumber << 24) >> 24) + 255;
-			int tileAddr = bgTileDataSelect + tileNumber * 16 + (tileLineOffset * 2);
-			drawTileLine(memory.read8(tileAddr), memory.read8(tileAddr + 1), dx, dy);
-			mapTileAddress++;
+		for(; dx < SCREEN_W; dx += 8) {
+			if(mapTileAddress > bgTileMapSelectEnd) // I still don't know why +1 works
+				mapTileAddress -= bgTileMapSelectEnd - bgTileMapSelect + 1;
+			int tile = memory.read8(mapTileAddress++);
+			if (tileData8800) {
+				tile = (tile << 24) >> 24; // sign extend the tile
+				tile += 255; // normalize the tile number
+			}
+			tile = bgTileDataSelect + (tile * 16) + (tileYOffset * 2);
+			int least8 = memory.read8(tile);
+			int most8 = memory.read8(tile + 1);
+			drawMonochromeTileLine(least8, most8, dx, currentLine);
 		}
 	}
 
-	public void drawWindow() {
+	public void drawMonochromeWindowLine() {
 	}
 
 	private void handleVDrawValues() {

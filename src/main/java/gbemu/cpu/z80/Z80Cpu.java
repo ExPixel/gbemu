@@ -70,7 +70,8 @@ public class Z80Cpu {
 	 * @param address The address the call is being made to.
 	 */
 	public void onCall(int address) {
-		debug("[%04x] call to %04x", lastExecutedAddress, address);
+		// todo remove debug code.
+		// debug("[%04x] call to %04x", lastExecutedAddress, address);
 	}
 
 	/**
@@ -78,7 +79,8 @@ public class Z80Cpu {
 	 * @param address The address the CPU attempts to jump to.
 	 */
 	public void onJump(int address) {
-		debug("[%04x] jump to %04x", lastExecutedAddress, address);
+		// todo remove debug code.
+		// debug("[%04x] jump to %04x", lastExecutedAddress, address);
 	}
 
 	/**
@@ -87,15 +89,18 @@ public class Z80Cpu {
 	 * @param to The address that the CPU is returning to.
 	 */
 	public void onRet(int from, int to) {
-		debug("[%04x] return from %04x to %04x", lastExecutedAddress, from, to);
+		// todo remove debug code.
+		// debug("[%04x] return from %04x to %04x", lastExecutedAddress, from, to);
 	}
 
 	public void stop() {
-		debug("[%04x] stopped", lastExecutedAddress);
+		// todo remove debug code.
+		// debug("[%04x] stopped", lastExecutedAddress);
 	}
 
 	public void halt() {
-		debug("[%04x] halt", lastExecutedAddress);
+		// todo remove debug code.
+		// debug("[%04x] halt", lastExecutedAddress);
 		this.halted = true;
 	}
 
