@@ -12,17 +12,20 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /**
  * The display for the GameBoy.
  * @author Adolph C.
  */
 public class GameBoyLCD implements MediaDisposer.Disposable {
+	private static final int SCREEN_W = 160;
+	private static final int SCREEN_H = 144;
+
 	/**
 	 * Pointer to the LWJGL window that we are using for the LCD.
 	 */
 	private final long window;
-
 	/**
 	 * Memory object that this will use to communicate
 	 * with the CPU and retrieve the PIXELS that
@@ -30,19 +33,22 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	 */
 	private final GBMemory memory;
 	private final Z80Cpu cpu;
+
 	private double frameDelta = 0;
-
 	private Renderer renderer;
-	private FontRenderer fontRenderer;
 
+	private boolean[] bgTransparent = new boolean[SCREEN_W];
+	private boolean[] windowTransparent = new boolean[SCREEN_W];
+	private int[] spritePriorities = new int[SCREEN_W];
+
+	private boolean[] transparencySave = bgTransparent;
+
+	private FontRenderer fontRenderer;
 	// Information
 	private FrameCounter frameCounter;
 	private FrameCounter gameBoyFrameCounter;
 	private long renderedFrames = 0;
 	private long renderedLines = 0;
-
-	private static final int SCREEN_W = 160;
-	private static final int SCREEN_H = 144;
 
 	/**
 	 * The size of the display's data in bytes.
@@ -64,8 +70,10 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	 */
 	private static final int[] monochromePaletteReference = {0xffffff, 0xBBBBBB, 0x555555, 0x000000};
 	private int[] monochromePalette = {0, 0, 0, 0};
+	private int[] monochromeSpritePalette0 = {0, 0, 0, 0};
+	private int[] monochromeSpritePalette1 = {0, 0, 0, 0};
 
-	private Vector3f textColor = new Vector3f(100, 255, 100).div(255);
+	private Vector3f textColor = new Vector3f(0, 0, 0).div(255);
 
 	public GameBoyLCD(long window, Z80Cpu cpu, GBMemory memory) {
 		this.window = window;
@@ -97,9 +105,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		screenTexture.create(SCREEN_W, SCREEN_H, screenData);
 	}
 
-	public void incFrameDelta(double amount) {
-		this.frameDelta += amount;
-	}
+	public void incFrameDelta(double amount) {this.frameDelta += amount;}
 
 	private boolean isFrameTime() {
 		// 1.0d / 60d
@@ -162,7 +168,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		int allowed = Math.max(this.frameCounter.getFPS() / 143, 1);
 		// todo For now I want the last line drawn in the drawFrame method but this might not be necessary.
 		for(int drawn = 0; currentLine < 143 && drawn < allowed; drawn++, currentLine++) {
-			processLine(false);
+			this.processVDrawLine();
 		}
 	}
 
@@ -185,25 +191,48 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	}
 
 	private void runVDraw() {
-		this.handleVDrawValues();
 		for(currentLine = 0; currentLine < 144; currentLine++) {
-			processLine(false);
+			processVDrawLine();
 		}
 	}
 	private void runVBlank() {
-		this.handleVBlankValues();
+		this.lcdMode(1); // The actual mode value stays the same during vblank.
+		this.cpu.fireVBlankInterrupt();
 		for (currentLine = 144; currentLine < 154; currentLine++) {
-			processLine(true);
+			processVBlankLine();
 		}
 	}
 
-	private void processLine(boolean vblank) {
+	private void processVDrawLine() {
 		this.memory.ioPorts.LY = this.currentLine;
-		this.handleHDrawValues();
-		this.cpu.executeCycles(436); // or 439
-		if(!vblank) this.line();
-		this.handleHBlankValues();
-		this.cpu.executeCycles(262); // Hblank
+		this.checkCoincidence();
+		this.lcdMode(2);
+		this.cpu.executeCycles(80); // Mode 2: 77-83 clks
+
+		this.lcdMode(3);
+		this.line();
+		this.cpu.executeCycles(172); // Mode 3: 169-175 clks
+
+		this.lcdMode(0);
+		this.cpu.executeCycles(204); // Mode 0: 201-207 clks
+	}
+
+	private void processVBlankLine() {
+		this.memory.ioPorts.LY = this.currentLine;
+		this.checkCoincidence();
+		this.lcdMode(1); // The actual mode value stays the same during vblank.
+		this.cpu.executeCycles(80); // Mode 2: 77-83 clks
+		this.cpu.executeCycles(172); // Mode 3: 169-175 clks
+		this.cpu.executeCycles(204); // Mode 0: 201-207 clks
+	}
+
+	private void checkCoincidence() {
+		if(this.memory.ioPorts.LY == this.memory.ioPorts.LYC) {
+			this.memory.ioPorts.STAT |= 0x4;
+			if((this.memory.ioPorts.STAT & 0x40) != 0) this.cpu.fireLCDStatInterrupt();
+		} else {
+			this.memory.ioPorts.STAT &= ~0x4;
+		}
 	}
 
 	/**
@@ -214,8 +243,6 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	 */
 	private void poke(int x, int y, int color) {
 		try {
-			if (x >= SCREEN_W || y >= SCREEN_H) return;
-			if (x < 0 || y < 0) return;
 			int offset = (x * 3) + ((y * 3) * SCREEN_W);
 			this.screenData.put(offset, (byte) (color & 0xFF));
 			this.screenData.put(offset + 1, (byte) ((color >> 8) & 0xFF));
@@ -228,7 +255,17 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	private void line() {
 		// todo add color capabilities
 		setupMonochromePalette();
-		drawMonochromeBGLine();
+		Arrays.fill(bgTransparent, true);
+		Arrays.fill(windowTransparent, true);
+
+		// Bit 0 - BG Display (for CGB see below) (0=Off, 1=On)
+		if((memory.ioPorts.LCDC & 0x01) != 0) drawMonochromeBGLine();
+
+		// Bit 5 - Window Display Enable          (0=Off, 1=On)
+		if((memory.ioPorts.LCDC & 0x20) != 0) drawMonochromeWindowLine();
+
+		// Bit 1 - OBJ (Sprite) Display Enable    (0=Off, 1=On)
+		if((memory.ioPorts.LCDC & 0x03) != 0) drawMonochromeSpriteLine();
 		this.renderedLines++;
 	}
 
@@ -241,18 +278,67 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 				monochromePaletteReference[(memory.ioPorts.BGP >> 4) & 0x3];
 		monochromePalette[3] =
 				monochromePaletteReference[(memory.ioPorts.BGP >> 6) & 0x3];
+
+		monochromeSpritePalette0[0] =
+				monochromePaletteReference[memory.ioPorts.OBP0 & 0x3];
+		monochromeSpritePalette0[1] =
+				monochromePaletteReference[(memory.ioPorts.OBP0 >> 2) & 0x3];
+		monochromeSpritePalette0[2] =
+				monochromePaletteReference[(memory.ioPorts.OBP0 >> 4) & 0x3];
+		monochromeSpritePalette0[3] =
+				monochromePaletteReference[(memory.ioPorts.OBP0 >> 6) & 0x3];
+
+		monochromeSpritePalette1[0] =
+				monochromePaletteReference[memory.ioPorts.OBP1 & 0x3];
+		monochromeSpritePalette1[1] =
+				monochromePaletteReference[(memory.ioPorts.OBP1 >> 2) & 0x3];
+		monochromeSpritePalette1[2] =
+				monochromePaletteReference[(memory.ioPorts.OBP1 >> 4) & 0x3];
+		monochromeSpritePalette1[3] =
+				monochromePaletteReference[(memory.ioPorts.OBP1 >> 6) & 0x3];
 	}
 
-	private void drawMonochromeTileLine(int least8, int most8, int dx, int dy) {
+	private void drawMonochromeTileLine(int[] palette, int least8, int most8, int dx, int dy) {
 		dx += 7;
 		for(int i = 7; i >= 0; i--) {
-			int c = (least8 & 1) | ((most8 & 1) << 1);
-			int x = dx--;
-			poke(x, dy, monochromePalette[c]);
+			if (dx < 0 || dy >= SCREEN_H || dy < 0) return;
+			if (dx >= SCREEN_W) { dx--; continue; }
+			int c = ((least8 & 1) | ((most8 & 1) << 1));
+			transparencySave[dx] = (c == 0);
+			poke(dx--, dy, palette[c]);
 			least8 >>= 1;
 			most8 >>= 1;
 		}
 	}
+
+	private void drawMonochromeSpriteTileLine(int[] palette, int priority, boolean flipped, int least8, int most8, int dx, int dy) {
+		if(flipped) {
+			for(int i = 7; i >= 0; i--) {
+				if (dx >= SCREEN_W|| dy >= SCREEN_H || dy < 0) return;
+				if (dx < 0 ) { dx--; continue; }
+				if(!transparencySave[dx] || priority < spritePriorities[dx]) continue;
+				spritePriorities[dx] = priority;
+				int c = ((least8 & 1) | ((most8 & 1) << 1));
+				poke(dx++, dy, palette[c]);
+				least8 >>= 1;
+				most8 >>= 1;
+			}
+		} else {
+			dx += 7;
+			for(int i = 7; i >= 0; i--) {
+				if (dx < 0 || dy >= SCREEN_H || dy < 0) return;
+				if (dx >= SCREEN_W) { dx--; continue; }
+				if(!transparencySave[dx] || priority < spritePriorities[dx]) continue;
+				spritePriorities[dx] = priority;
+				int c = ((least8 & 1) | ((most8 & 1) << 1));
+				poke(dx--, dy, palette[c]);
+				least8 >>= 1;
+				most8 >>= 1;
+			}
+		}
+	}
+
+	// todo Optimize graphics.
 
 	public void drawMonochromeBGLine() {
 		// if this is true then tiles are numbered from -128 to 127
@@ -271,6 +357,8 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 		int dx = -(scx % 8);
 //		int dy = line-(scy & 7);
 
+		transparencySave = bgTransparent; // To save transparency
+
 		for(; dx < SCREEN_W; dx += 8) {
 			if(mapTileAddress > bgTileMapSelectEnd) // I still don't know why +1 works
 				mapTileAddress -= bgTileMapSelectEnd - bgTileMapSelect + 1;
@@ -282,37 +370,89 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			tile = bgTileDataSelect + (tile * 16) + (tileYOffset * 2);
 			int least8 = memory.read8(tile);
 			int most8 = memory.read8(tile + 1);
-			drawMonochromeTileLine(least8, most8, dx, currentLine);
+			drawMonochromeTileLine(monochromePalette, least8, most8, dx, currentLine);
 		}
 	}
 
 	public void drawMonochromeWindowLine() {
+		int wx = memory.ioPorts.WX;
+		int wy = memory.ioPorts.WY;
+		boolean tileData8800 = (memory.ioPorts.LCDC & 0x10) == 0;
+		int windowTileDataSelect = tileData8800 ? 0x8800 : 0x8000;
+		int windowTileMapSelect = (memory.ioPorts.LCDC & 0x40) == 0 ? 0x9800 : 0x9C00;
+		int windowTileMapSelectEnd = (memory.ioPorts.LCDC & 0x40) == 0 ? 0x9BFF : 0x9FFF;
+
+		int line = this.currentLine + wy;
+		int mapTileAddress = windowTileMapSelect + ((line / 8) * 32);
+		mapTileAddress += wx / 8;
+		int tileYOffset = line % 8;
+
+		int dx = -(wy % 8);
+//		int dy = line-(scy & 7);
+
+		transparencySave = windowTransparent; // Saves transparency values here.
+
+		for(; dx < SCREEN_W; dx += 8) {
+			if(mapTileAddress > windowTileMapSelectEnd) // I still don't know why +1 works
+				mapTileAddress -= windowTileMapSelectEnd - windowTileMapSelect + 1;
+			int tile = memory.read8(mapTileAddress++);
+			if (tileData8800) {
+				tile = (tile << 24) >> 24; // sign extend the tile
+				tile += 255; // normalize the tile number
+			}
+			tile = windowTileDataSelect + (tile * 16) + (tileYOffset * 2);
+			int least8 = memory.read8(tile);
+			int most8 = memory.read8(tile + 1);
+			drawMonochromeTileLine(monochromePalette, least8, most8, dx, currentLine);
+		}
 	}
 
-	private void handleVDrawValues() {
-		this.memory.ioPorts.LCDC &= ~3;
-		this.memory.ioPorts.LCDC |= 3;
+	public void drawMonochromeSpriteLine() {
+		Arrays.fill(spritePriorities, 0);
+		int spritesDrawn = 0;
+		int sheight = (memory.ioPorts.LCDC & 0x4) == 0 ? 8 : 16;
+		for(int sprite = 0xFE00; sprite <= 0xFE9F && spritesDrawn < 40; sprite += 4) {
+			int y = memory.read8(sprite);
+			if(y == 0 || y >= 160) continue;
+			int x = memory.read8(sprite + 1);
+			if(x == 0 || x >= 168) continue;
+
+			y -= 16;
+			if(y != currentLine) continue;
+			x -= 8;
+
+			int tile = memory.read8(sprite + 2);
+			int attr = memory.read8(sprite + 3);
+
+			transparencySave = (attr & 128) == 0 ? windowTransparent : bgTransparent;
+			boolean xflip = (attr & 32) != 0;
+			boolean yflip = (attr & 64) != 0; // todo implement yflip
+			int[] palette = (attr & 16) == 0 ? monochromeSpritePalette0 : monochromeSpritePalette1;
+
+
+			if(sheight == 8) {
+				tile = 0x8000 + (tile * 16) + ((y % 8) * 2);
+				int least8 = memory.read8(tile);
+				int most8 = memory.read8(tile + 1);
+				drawMonochromeSpriteTileLine(palette, x, xflip, least8, most8, x, y);
+			} else {
+				System.out.println(":(");
+			}
+			spritesDrawn++;
+		}
 	}
 
-	private void handleVBlankValues() {
-		this.memory.ioPorts.LCDC &= ~3;
-		this.memory.ioPorts.LCDC |= 1;
-		this.cpu.fireVBlankInterrupt();
-	}
+	private void lcdMode(int mode) {
+		this.memory.ioPorts.STAT &= ~0x3;
+		this.memory.ioPorts.STAT |= mode & 0x3;
 
-	/**
-	 * Handles IO port values and interrupts for hdraw.
-	 */
-	private void handleHDrawValues() {
-		this.memory.ioPorts.LCDC &= ~3;
-		this.memory.ioPorts.LCDC |= 2;
-	}
-
-	/**
-	 * Handles IO port values and interrupts for hblank.
-	 */
-	private void handleHBlankValues() {
-		this.memory.ioPorts.LCDC &= ~3; // This is just clear during hblank
+		int check = 0;
+		switch (mode) {
+			case 0: check = 0x8; break;
+			case 1: check = 0x10; break;
+			case 2: check = 0x20; break;
+		}
+		if((memory.ioPorts.STAT & check) != 0) this.cpu.fireLCDStatInterrupt();
 	}
 
 	public void dispose() {

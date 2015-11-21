@@ -30,9 +30,9 @@ public class Z80Cpu {
 		this.executor = new Z80Executor(this, memory, reg, clock, alu);
 	}
 
-	public void handleInterrupts() {
+	public boolean handleInterrupts() {
 		int interrupts = memory.ioPorts.IF & (memory.ioPorts.IE & 0xf);
-		if(interrupts == 0) return; // No interrupt has occured so we end here.
+		if(interrupts == 0) return false; // No interrupt has occured so we end here.
 		this.halted = false; // CPU is no longer halted.
 		if(this.memory.ioPorts.IME != 0) {
 			this.memory.ioPorts.IME = 0;
@@ -59,7 +59,10 @@ public class Z80Cpu {
 				vector = 0x60;
 			}
 			this.executor.call(vector);
+//			System.out.println(String.format("Jump to vector: %04x", vector));
+			return true;
 		}
+		return false;
 	}
 
 	public void fireVBlankInterrupt() {
@@ -88,12 +91,12 @@ public class Z80Cpu {
 
 	public void execute() {
 		if(this.halted) return;
+		if(this.handleInterrupts()) return;
 		lastExecutedAddress = reg.getPC();
 		int instr = this.memory.read8(this.reg.getPC());
 		this.reg.incPC();
 		this.executor.execute(instr);
 		this.clock.updateTimerRegisters();
-		this.handleInterrupts();
 	}
 
 	public long executeCycles(long targetCycles) {

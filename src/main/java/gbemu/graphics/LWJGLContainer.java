@@ -18,9 +18,11 @@ public class LWJGLContainer implements Disposable {
 	private GLFWKeyCallback keyCallback;
 	private LWJGLKeyListener keyListener;
 	private long window;
+	private LWJGLFrameHandler frameHandler;
 
 	public static final int WINDOW_WIDTH = 160;
 	public static final int WINDOW_HEIGHT = 144;
+	private double lastFrameTime;
 
 	public void init() {
 		glfwSetErrorCallback(errorCallback = GLFWErrorCallback.createPrint(System.err));
@@ -79,33 +81,48 @@ public class LWJGLContainer implements Disposable {
 		System.out.println("OpenGL: " + glGetString(GL_VERSION));
 	}
 
-	public void loop(LWJGLFrameHandler handler) {
+	public void loop() {
+		initGraphics();
+
+		// Run the rendering loop until the user has attempted to close
+		// the window or has pressed the ESCAPE key.
+		while (poll()) {
+			frame();
+		}
+	}
+
+	public void initGraphics() {
 		// Set the clear color
 		glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 
-		double lastFrameTime = glfwGetTime();
+		this.lastFrameTime = glfwGetTime();
 
 		// Some initialization functions for...things.
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
 
-		// Run the rendering loop until the user has attempted to close
-		// the window or has pressed the ESCAPE key.
-		while ( glfwWindowShouldClose(window) == GL_FALSE ) {
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
+	public boolean poll() {
+		// Poll for window events. The key callback above will only be
+		// invoked during this call.
+		glfwPollEvents();
+		return glfwWindowShouldClose(window) == GL_FALSE;
+	}
 
-			// Poll for window events. The key callback above will only be
-			// invoked during this call.
-			glfwPollEvents();
+	public void frame() {
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
 
-			// todo there might be a better way to do this using openGL's functionality.
+		// todo there might be a better way to do this using openGL's functionality.
 
-			double frameTime = glfwGetTime();
-			handler.frame(frameTime - lastFrameTime);
-			lastFrameTime = frameTime;
+		double frameTime = glfwGetTime();
+		frameHandler.frame(frameTime - this.lastFrameTime);
+		this.lastFrameTime = frameTime;
 
-			glfwSwapBuffers(window); // swap the color buffers
-		}
+		glfwSwapBuffers(window); // swap the color buffers
+	}
+
+	public void setFrameHandler(LWJGLFrameHandler frameHandler) {
+		this.frameHandler = frameHandler;
 	}
 
 	public void close() {

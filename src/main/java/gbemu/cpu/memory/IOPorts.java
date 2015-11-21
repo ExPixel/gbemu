@@ -5,6 +5,9 @@ package gbemu.cpu.memory;
  */
 public class IOPorts {
 	public int P1; // 0xFF00
+	public int P1_BUTTONS = 0;
+	public int P1_DIRECTIONS = 0;
+
 	public int SB; // 0xFF01
 	public int SC; // 0xFF02
 	public int DIV; // 0xFF04
@@ -82,7 +85,9 @@ public class IOPorts {
 	int read8(int address) {
 		switch (address) {
 			case 0xFF00:
-				return P1;
+				if((P1 & 0x20) == 0) return P1_BUTTONS;
+				else if((P1 & 0x10) == 0) return P1_DIRECTIONS;
+				return P1 | 0xf;
 			case 0xFF01:
 				return SB;
 			case 0xFF02:
@@ -190,7 +195,7 @@ public class IOPorts {
 	void write8(int address, int data) {
 		switch (address) {
 			case 0xFF00:
-				P1 = data;
+				P1 = data & 0xf0;
 				break;
 			case 0xFF01:
 				SB = data;

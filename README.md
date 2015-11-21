@@ -3,7 +3,7 @@ GameBoy emulator in Java.
 
 TODO Pass All Blargg Tests:
 - [x] 01-special
-- [ ] 02-interrupts
+- [x] 02-interrupts
 - [x] 03-op sp,hl.s
 - [x] 04-op r,imm.s
 - [x] 05-op rp

@@ -13,10 +13,24 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import static org.lwjgl.glfw.GLFW.glfwWindowShouldClose;
+import static org.lwjgl.opengl.GL11.GL_FALSE;
+
 /**
  * @author Adolph C.
  */
 public class GameBoy implements LWJGLKeyListener, Disposable {
+	private static final int JOYPAD_TYPE_DIRECTION = 0x10;
+	private static final int JOYPAD_TYPE_BUTTON = 0x20;
+	private static final int JOYPAD_RIGHT = 0x1;
+	private static final int JOYPAD_A = 0x1;
+	private static final int JOYPAD_LEFT = 0x2;
+	private static final int JOYPAD_B = 0x2;
+	private static final int JOYPAD_UP = 0x4;
+	private static final int JOYPAD_SELECT = 0x4;
+	private static final int JOYPAD_DOWN = 0x8;
+	private static final int JOYPAD_START = 0x8;
+
 	private GBCartridge cartridge;
 	private GBMemory memory;
 	private Z80Cpu cpu;
@@ -77,6 +91,9 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 		memory.write8(0xFF4A, 0x00); // WY
 		memory.write8(0xFF4B, 0x00); // WX
 		memory.write8(0xFFFF, 0x00); // IE
+
+		memory.ioPorts.P1_DIRECTIONS = 0x0f;
+		memory.ioPorts.P1_BUTTONS = 0x0f;
 	}
 
 	private void initializeGraphics() {
@@ -89,7 +106,8 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 		lcd.init();
 		Runtime.getRuntime().addShutdownHook(new Thread(this::dispose));
 		this.lwjglContainer.setKeyListener(this);
-		this.lwjglContainer.loop(lcd::render);
+		this.lwjglContainer.setFrameHandler(lcd::render);
+		this.lwjglContainer.loop();
 		this.dispose();
 	}
 
@@ -108,7 +126,86 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 				}
 				System.out.println("Dumped memory.");
 			}
+
+			switch (key) {
+				case GLFW.GLFW_KEY_LEFT:
+					joypadPress(JOYPAD_TYPE_DIRECTION, JOYPAD_LEFT);
+					break;
+				case GLFW.GLFW_KEY_RIGHT:
+					joypadPress(JOYPAD_TYPE_DIRECTION, JOYPAD_RIGHT);
+					break;
+				case GLFW.GLFW_KEY_UP:
+					joypadPress(JOYPAD_TYPE_DIRECTION, JOYPAD_UP);
+					break;
+				case GLFW.GLFW_KEY_DOWN:
+					joypadPress(JOYPAD_TYPE_DIRECTION, JOYPAD_DOWN);
+					break;
+				case GLFW.GLFW_KEY_Z:
+					joypadPress(JOYPAD_TYPE_BUTTON, JOYPAD_A);
+					break;
+				case GLFW.GLFW_KEY_X:
+					joypadPress(JOYPAD_TYPE_BUTTON, JOYPAD_B);
+					break;
+				case GLFW.GLFW_KEY_A:
+					joypadPress(JOYPAD_TYPE_BUTTON, JOYPAD_START);
+					break;
+				case GLFW.GLFW_KEY_S:
+					joypadPress(JOYPAD_TYPE_BUTTON, JOYPAD_SELECT);
+					break;
+			}
+		} else if(action == GLFW.GLFW_RELEASE) {
+			switch (key) {
+				case GLFW.GLFW_KEY_LEFT:
+					joypadRelease(JOYPAD_TYPE_DIRECTION, JOYPAD_LEFT);
+					break;
+				case GLFW.GLFW_KEY_RIGHT:
+					joypadRelease(JOYPAD_TYPE_DIRECTION, JOYPAD_RIGHT);
+					break;
+				case GLFW.GLFW_KEY_UP:
+					joypadRelease(JOYPAD_TYPE_DIRECTION, JOYPAD_UP);
+					break;
+				case GLFW.GLFW_KEY_DOWN:
+					joypadRelease(JOYPAD_TYPE_DIRECTION, JOYPAD_DOWN);
+					break;
+				case GLFW.GLFW_KEY_Z:
+					joypadRelease(JOYPAD_TYPE_BUTTON, JOYPAD_A);
+					break;
+				case GLFW.GLFW_KEY_X:
+					joypadRelease(JOYPAD_TYPE_BUTTON, JOYPAD_B);
+					break;
+				case GLFW.GLFW_KEY_A:
+					joypadRelease(JOYPAD_TYPE_BUTTON, JOYPAD_START);
+					break;
+				case GLFW.GLFW_KEY_S:
+					joypadRelease(JOYPAD_TYPE_BUTTON, JOYPAD_SELECT);
+					break;
+			}
 		}
+	}
+
+	private void joypadPress(int joypadType, int joypadInput) {
+		if(joypadType == JOYPAD_TYPE_BUTTON) {
+			int before = memory.ioPorts.P1_BUTTONS;
+			memory.ioPorts.P1_BUTTONS &= ~joypadInput;
+			if(before != memory.ioPorts.P1_BUTTONS) {
+				if((memory.ioPorts.P1 & 0x20) == 0) {
+					this.cpu.fireJoypadInterrupt();
+				}
+			}
+		} else if(joypadType == JOYPAD_TYPE_DIRECTION) {
+			int before = memory.ioPorts.P1_DIRECTIONS;
+			memory.ioPorts.P1_DIRECTIONS &= ~joypadInput;
+			if(before != memory.ioPorts.P1_DIRECTIONS) {
+				if((memory.ioPorts.P1 & 0x10) == 0) {
+					this.cpu.fireJoypadInterrupt();
+				}
+			}
+		}
+	}
+
+	private void joypadRelease(int joypadType, int joypadInput) {
+		if(joypadType == JOYPAD_TYPE_BUTTON) memory.ioPorts.P1_BUTTONS |= joypadInput;
+		else if(joypadType == JOYPAD_TYPE_DIRECTION) memory.ioPorts.P1_DIRECTIONS |= joypadInput;
 	}
 
 	public GBCartridge getCartridge() {
