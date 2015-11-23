@@ -27,9 +27,9 @@ public class Z80Clock {
 	}
 
 	public void incIO(long amt) {
-		divCycles += amt;
+		divCycles += amt >> 2;
 		if(cpu.memory.ioPorts._TAC_TIMER_RUNNING)
-			timaCycles += amt;
+			timaCycles += amt >> 2;
 	}
 
 	public long getCycles() {
@@ -37,7 +37,7 @@ public class Z80Clock {
 	}
 
 	public long getMachineCycles() {
-		return cycles / 4;
+		return cycles >> 2;
 	}
 
 	public long getCyclesElapsed() {
