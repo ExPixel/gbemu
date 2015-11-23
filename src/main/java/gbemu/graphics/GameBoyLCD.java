@@ -322,7 +322,8 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 				if(!transparencySave[dx] || priority < spritePriorities[dx]) continue;
 				spritePriorities[dx] = priority;
 				int c = ((least8 & 1) | ((most8 & 1) << 1));
-				poke(dx++, dy, palette[c]);
+				if(c != 0) poke(dx++, dy, palette[c]);
+				else dx++;
 				least8 >>= 1;
 				most8 >>= 1;
 			}
@@ -334,7 +335,8 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 				if(!transparencySave[dx] || priority < spritePriorities[dx]) continue;
 				spritePriorities[dx] = priority;
 				int c = ((least8 & 1) | ((most8 & 1) << 1));
-				poke(dx--, dy, palette[c]);
+				if(c != 0) poke(dx--, dy, palette[c]);
+				else dx--;
 				least8 >>= 1;
 				most8 >>= 1;
 			}
