@@ -421,7 +421,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			if(x == 0 || x >= 168) continue;
 
 			y -= 16;
-			if((y + sheight) < currentLine || y > currentLine) continue;
+			if(currentLine > (y + sheight - 1) || currentLine < y) continue;
 			x -= 8;
 
 			int tile = memory.read8(sprite + 2);
@@ -429,11 +429,12 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 
 			transparencySave = (attr & 128) == 0 ? windowTransparent : bgTransparent;
 			boolean xflip = (attr & 32) != 0;
-			boolean yflip = (attr & 64) != 0; // todo implement yflip
+			boolean yflip = (attr & 64) != 0;
 			int[] palette = (attr & 16) == 0 ? monochromeSpritePalette0 : monochromeSpritePalette1;
 
 			if(sheight == 8) {
-				tile = 0x8000 + (tile * 16) + (((currentLine - y) % 8) * 2);
+				if(yflip) tile = 0x8000 + (tile * 16) + 14 - (currentLine - y) % 8 * 2;
+				else tile = 0x8000 + (tile * 16) + ((currentLine - y) % 8 * 2);
 				int least8 = memory.read8(tile);
 				int most8 = memory.read8(tile + 1);
 				drawMonochromeSpriteTileLine(palette, x, xflip, least8, most8, x, currentLine);
