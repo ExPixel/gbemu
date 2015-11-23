@@ -11,6 +11,7 @@ import java.io.IOException;
  */
 public class Z80Cpu {
 	public final GBMemory memory;
+	public final GameBoyMiscFunctions functions;
 	public final Z80Registers reg;
 	public final Z80Clock clock;
 	public final Z80Executor executor;
@@ -27,6 +28,7 @@ public class Z80Cpu {
 		this.clock = new Z80Clock(this);
 		this.reg = new Z80Registers();
 		this.alu = new Z80ALU(reg);
+		this.functions = new GameBoyMiscFunctions(this, memory);
 		this.executor = new Z80Executor(this, memory, reg, clock, alu);
 	}
 
@@ -109,6 +111,7 @@ public class Z80Cpu {
 		this.clock.clearCyclesElapsed();
 		while(this.clock.getCyclesElapsed() < targetCycles && !this.halted) {
 			this.execute();
+			this.functions.cycle();
 			// todo remove test code
 //			if(lastExecutedAddress >= 0xC338 && lastExecutedAddress <= 0xC359) {
 //				GeneralDebug.printfn("[%04x] %04x %04x %04x %04x %04x", this.getLastExecutedAddress(), reg.getAF(), reg.getBC(), reg.getDE(), reg.getHL(), reg.getSP());

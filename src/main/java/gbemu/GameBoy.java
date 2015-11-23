@@ -152,6 +152,23 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 				case GLFW.GLFW_KEY_S:
 					joypadPress(JOYPAD_TYPE_BUTTON, JOYPAD_SELECT);
 					break;
+
+				// Some Non GameBoy buttons. Forget separation of concerns or whatver for now.
+				case GLFW.GLFW_KEY_1:
+					if((mods & GLFW.GLFW_MOD_ALT) != 0) resizeGameBoyWindow(1);
+					break;
+				case GLFW.GLFW_KEY_2:
+					if((mods & GLFW.GLFW_MOD_ALT) != 0) resizeGameBoyWindow(2);
+					break;
+				case GLFW.GLFW_KEY_3:
+					if((mods & GLFW.GLFW_MOD_ALT) != 0) resizeGameBoyWindow(3);
+					break;
+				case GLFW.GLFW_KEY_4:
+					if((mods & GLFW.GLFW_MOD_ALT) != 0) resizeGameBoyWindow(4);
+					break;
+				case GLFW.GLFW_KEY_D:
+					if((mods & GLFW.GLFW_MOD_ALT) != 0) lcd.toggleRenderDebug();
+					break;
 			}
 		} else if(action == GLFW.GLFW_RELEASE) {
 			switch (key) {
@@ -181,6 +198,10 @@ public class GameBoy implements LWJGLKeyListener, Disposable {
 					break;
 			}
 		}
+	}
+
+	private void resizeGameBoyWindow(int ratio) {
+		this.lwjglContainer.setWindowSize(LWJGLContainer.WINDOW_WIDTH * ratio, LWJGLContainer.WINDOW_HEIGHT * ratio);
 	}
 
 	private void joypadPress(int joypadType, int joypadInput) {

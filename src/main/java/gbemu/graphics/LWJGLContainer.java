@@ -121,6 +121,16 @@ public class LWJGLContainer implements Disposable {
 		glfwSwapBuffers(window); // swap the color buffers
 	}
 
+	public void setWindowSize(int width, int height) {
+		glfwSetWindowSize(this.window, width, height);
+		GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+		glfwSetWindowPos(
+				window,
+				(vidmode.width() - width) / 2,
+				(vidmode.height() - height) / 2
+		);
+	}
+
 	public void setFrameHandler(LWJGLFrameHandler frameHandler) {
 		this.frameHandler = frameHandler;
 	}

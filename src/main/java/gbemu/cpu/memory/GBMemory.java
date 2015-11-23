@@ -51,7 +51,7 @@ public class GBMemory {
 	public int read8(int address) {
 		address &= 0xffff;
 		if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) return this.ioPorts.read8(address);
-		if(address >= 0xE000 && address <= 0xFE00) {
+		if(address >= 0xE000 && address <= 0xFDFF) {
 			/*
 			The addresses E000-FE00 appear to access the internal
 			RAM the same as C000-DE00. (i.e. If you write a byte to
@@ -70,7 +70,7 @@ public class GBMemory {
 		address &= 0xffff;
 		if ((address >= 0xFF00 && address <= 0xFF7F) || address == 0xFFFF) {
 			this.ioPorts.write8(address, value & 0xff);
-		} else if(address >= 0xE000 && address <= 0xFE00) {
+		} else if(address >= 0xE000 && address <= 0xFDFF) {
 			/*
 			The addresses E000-FE00 appear to access the internal
 			RAM the same as C000-DE00. (i.e. If you write a byte to

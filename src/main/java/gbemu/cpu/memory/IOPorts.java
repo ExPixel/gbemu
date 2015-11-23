@@ -56,7 +56,13 @@ public class IOPorts {
 	public int SCX; // 0xFF43
 	public int LY; // 0xFF44
 	public int LYC; // 0xFF45
+
 	public int DMA; // 0xFF46
+	/**
+	 * true if DMA (0xFF46) was written to.
+	 */
+	public boolean DMAWrite = false;
+
 	public int BGP; // 0xFF47
 	public int OBP0; // 0xFF48
 	public int OBP1; // 0xFF49
@@ -327,6 +333,7 @@ public class IOPorts {
 				break;
 			case 0xFF46:
 				DMA = data;
+				DMAWrite = true;
 				break;
 			case 0xFF47:
 				BGP = data;

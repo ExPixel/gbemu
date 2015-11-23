@@ -50,6 +50,8 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	private long renderedFrames = 0;
 	private long renderedLines = 0;
 
+	private boolean renderDebug = false;
+
 	/**
 	 * The size of the display's data in bytes.
 	 */
@@ -68,12 +70,13 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	 * 3  Black
 	 * </pre>
 	 */
-	private static final int[] monochromePaletteReference = {0xffffff, 0xBBBBBB, 0x555555, 0x000000};
+//	private static final int[] monochromePaletteReference = {0xffffff, 0xBBBBBB, 0x555555, 0x000000};
+	private static final int[] monochromePaletteReference = {0x607D8B, 0x673AB7, 0x3F51B5, 0xF44336};
 	private int[] monochromePalette = {0, 0, 0, 0};
 	private int[] monochromeSpritePalette0 = {0, 0, 0, 0};
 	private int[] monochromeSpritePalette1 = {0, 0, 0, 0};
 
-	private Vector3f textColor = new Vector3f(0, 0, 0).div(255);
+	private Vector3f textColor = new Vector3f(255, 255, 255).div(255);
 
 	public GameBoyLCD(long window, Z80Cpu cpu, GBMemory memory) {
 		this.window = window;
@@ -118,7 +121,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			this.drawFrame();
 		else this.drawSomeLines(); // draws some lines in the mean time.
 		renderer.drawTexture(screenTexture, 0, 0);
-		this.renderInfo(delta);
+		if(renderDebug) this.renderInfo(delta);
 		frameCounter.frame(delta);
 	}
 
@@ -418,7 +421,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			if(x == 0 || x >= 168) continue;
 
 			y -= 16;
-			if(y != currentLine) continue;
+			if((y + sheight) < currentLine || y > currentLine) continue;
 			x -= 8;
 
 			int tile = memory.read8(sprite + 2);
@@ -429,12 +432,11 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			boolean yflip = (attr & 64) != 0; // todo implement yflip
 			int[] palette = (attr & 16) == 0 ? monochromeSpritePalette0 : monochromeSpritePalette1;
 
-
 			if(sheight == 8) {
-				tile = 0x8000 + (tile * 16) + ((y % 8) * 2);
+				tile = 0x8000 + (tile * 16) + (((currentLine - y) % 8) * 2);
 				int least8 = memory.read8(tile);
 				int most8 = memory.read8(tile + 1);
-				drawMonochromeSpriteTileLine(palette, x, xflip, least8, most8, x, y);
+				drawMonochromeSpriteTileLine(palette, x, xflip, least8, most8, x, currentLine);
 			} else {
 				System.out.println(":(");
 			}
@@ -453,6 +455,10 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			case 2: check = 0x20; break;
 		}
 		if((memory.ioPorts.STAT & check) != 0) this.cpu.fireLCDStatInterrupt();
+	}
+
+	public void toggleRenderDebug() {
+		this.renderDebug = !renderDebug;
 	}
 
 	public void dispose() {
