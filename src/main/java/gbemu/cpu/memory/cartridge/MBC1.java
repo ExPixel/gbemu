@@ -90,6 +90,7 @@ public class MBC1 extends NoMBC {
             tempRomBankNumber++;
         }
         this.romBankNumber = tempRomBankNumber;
+        System.out.println("ROM Bank Number: " + this.romBankNumber);
     }
 
     private int mbc1Read8(int address) {

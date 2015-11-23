@@ -71,7 +71,8 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	 * </pre>
 	 */
 //	private static final int[] monochromePaletteReference = {0xffffff, 0xBBBBBB, 0x555555, 0x000000};
-	private static final int[] monochromePaletteReference = {0x607D8B, 0x673AB7, 0x3F51B5, 0xF44336};
+//	private static final int[] monochromePaletteReference = {0x4C4740, 0x88473F, 0xBA473E, 0xE2473D}; // light on dark - low contrast
+	private static final int[] monochromePaletteReference = {0xE2473D, 0xBA473E, 0x88473F, 0x4C4740}; // dark on light - low contrast
 	private int[] monochromePalette = {0, 0, 0, 0};
 	private int[] monochromeSpritePalette0 = {0, 0, 0, 0};
 	private int[] monochromeSpritePalette1 = {0, 0, 0, 0};
@@ -247,28 +248,32 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 	private void poke(int x, int y, int color) {
 		try {
 			int offset = (x * 3) + ((y * 3) * SCREEN_W);
-			this.screenData.put(offset, (byte) (color & 0xFF));
+			this.screenData.put(offset + 2, (byte) (color & 0xFF));
 			this.screenData.put(offset + 1, (byte) ((color >> 8) & 0xFF));
-			this.screenData.put(offset + 2, (byte) ((color >> 8) & 0xFF));
+			this.screenData.put(offset, (byte) ((color >> 16) & 0xFF));
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
 	}
 
 	private void line() {
-		// todo add color capabilities
-		setupMonochromePalette();
-		Arrays.fill(bgTransparent, true);
-		Arrays.fill(windowTransparent, true);
+		if((memory.ioPorts.LCDC & 128) != 0) {
+			// todo add color capabilities
+			setupMonochromePalette();
+			Arrays.fill(bgTransparent, true);
+			Arrays.fill(windowTransparent, true);
 
-		// Bit 0 - BG Display (for CGB see below) (0=Off, 1=On)
-		if((memory.ioPorts.LCDC & 0x01) != 0) drawMonochromeBGLine();
+			// Bit 0 - BG Display (for CGB see below) (0=Off, 1=On)
+			if ((memory.ioPorts.LCDC & 0x01) != 0) drawMonochromeBGLine();
 
-		// Bit 5 - Window Display Enable          (0=Off, 1=On)
-		if((memory.ioPorts.LCDC & 0x20) != 0) drawMonochromeWindowLine();
+			// Bit 5 - Window Display Enable          (0=Off, 1=On)
+			if ((memory.ioPorts.LCDC & 0x20) != 0) drawMonochromeWindowLine();
 
-		// Bit 1 - OBJ (Sprite) Display Enable    (0=Off, 1=On)
-		if((memory.ioPorts.LCDC & 0x03) != 0) drawMonochromeSpriteLine();
+			// Bit 1 - OBJ (Sprite) Display Enable    (0=Off, 1=On)
+			if ((memory.ioPorts.LCDC & 0x03) != 0) drawMonochromeSpriteLine();
+		} else {
+			for(int x = 0; x < SCREEN_W; x++) poke(x, currentLine, monochromePaletteReference[0]);
+		}
 		this.renderedLines++;
 	}
 
@@ -370,7 +375,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			int tile = memory.read8(mapTileAddress++);
 			if (tileData8800) {
 				tile = (tile << 24) >> 24; // sign extend the tile
-				tile += 255; // normalize the tile number
+				tile += 128; // normalize the tile number
 			}
 			tile = bgTileDataSelect + (tile * 16) + (tileYOffset * 2);
 			int least8 = memory.read8(tile);
@@ -403,7 +408,7 @@ public class GameBoyLCD implements MediaDisposer.Disposable {
 			int tile = memory.read8(mapTileAddress++);
 			if (tileData8800) {
 				tile = (tile << 24) >> 24; // sign extend the tile
-				tile += 255; // normalize the tile number
+				tile += 128; // normalize the tile number
 			}
 			tile = windowTileDataSelect + (tile * 16) + (tileYOffset * 2);
 			int least8 = memory.read8(tile);
